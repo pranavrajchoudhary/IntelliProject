@@ -1,0 +1,41 @@
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Vite build output
+dist/
+build/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+*.log
+
+# Optional cache folders
+.cache/
+.parcel-cache/
+.tmp/
+temp/
+
+# Backend-specific ignores (if Node/Express is used)
+backend/node_modules/
+backend/dist/
+backend/.env
+
+# Miscellaneous
+*.local

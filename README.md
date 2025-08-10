@@ -1,0 +1,1 @@
+G11-Internship Project 1 - Collaborative AI-Powered Ideation &amp; Project Management Platform  
