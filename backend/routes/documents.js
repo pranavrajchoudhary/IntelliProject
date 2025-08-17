@@ -7,4 +7,6 @@ router.post('/', protect, docController.createDocument);
 router.get('/project/:projectId', protect, docController.getProjectDocs);
 router.put('/:id', protect, docController.updateDocument);
 
+router.get('/:id', protect, docController.getDocument);
+
 module.exports = router;

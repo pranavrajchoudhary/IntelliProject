@@ -20,3 +20,11 @@ exports.getProjectDocs = asyncHandler(async (req, res) => {
   const docs = await Document.find({ projectId: req.params.projectId });
   res.json(docs);
 });
+
+exports.getDocument = asyncHandler(async (req, res) => {
+  const doc = await Document.findById(req.params.id)
+    .populate('createdBy', 'name email')
+    .populate('versions.editedBy', 'name email');
+  if (!doc) return res.status(404).json({ message: 'Document not found' });
+  res.json(doc);
+});
