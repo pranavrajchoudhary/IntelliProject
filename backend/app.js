@@ -9,6 +9,10 @@ const taskRoutes = require('./routes/tasks');
 const aiRoutes = require('./routes/ai');
 const docRoutes = require('./routes/documents');
 const errorHandler = require('./middleware/error');
+const userRoutes = require('./routes/users');
+const messageRoutes = require('./routes/messages');
+const analyticsRoutes = require('./routes/analytics');
+const settingsRoutes = require('./routes/settings');
 
 const app = express();
 
@@ -23,6 +27,10 @@ app.use('/projects', projectRoutes);
 app.use('/tasks', taskRoutes);
 app.use('/ai', aiRoutes);
 app.use('/documents', docRoutes);
+app.use('/users', userRoutes);
+app.use('/messages', messageRoutes);
+app.use('/analytics', analyticsRoutes);
+app.use('/settings', settingsRoutes);
 
 app.get('/', (req, res) => res.json({ status: 'ok' }));
 

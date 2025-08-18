@@ -8,15 +8,33 @@ exports.createProject = asyncHandler(async (req, res) => {
 });
 
 exports.getProjects = asyncHandler(async (req, res) => {
-  const projects = await Project.find({ members: req.user._id }).populate('owner', 'name email');
-  res.json(projects);
+  const projects = await Project.find({ members: req.user._id })
+    .populate('owner', 'name email')
+    .populate('members', 'name email');
+    
+  // Clean up any null members
+  const cleanedProjects = projects.map(project => ({
+    ...project.toObject(),
+    members: project.members.filter(member => member && member.name)
+  }));
+    
+  res.json(cleanedProjects);
 });
 
+
 exports.getProjectById = asyncHandler(async (req, res) => {
-  const project = await Project.findById(req.params.id).populate('members','name email');
+  const project = await Project.findById(req.params.id)
+    .populate('members', 'name email')
+    .populate('owner', 'name email');
+    
   if (!project) return res.status(404).json({ message: 'Project not found' });
+  
+  // Filter out any null members that might exist
+  project.members = project.members.filter(member => member && member.name);
+  
   res.json(project);
 });
+
 
 exports.updateProject = asyncHandler(async (req, res) => {
   const project = await Project.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -28,10 +46,29 @@ exports.deleteProject = asyncHandler(async (req, res) => {
   res.json({ message: 'Project deleted' });
 });
 
+// Fix controllers/projectController.js addMember function
 exports.addMember = asyncHandler(async (req, res) => {
+  const { memberId } = req.body;
+  
+  // Validate member exists
+  const memberUser = await User.findById(memberId);
+  if (!memberUser) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+
   const project = await Project.findById(req.params.id);
-  if (!project) return res.status(404).json({ message: 'Project not found' });
-  if (!project.members.includes(req.body.memberId)) project.members.push(req.body.memberId);
-  await project.save();
-  res.json(project);
+  if (!project) {
+    return res.status(404).json({ message: 'Project not found' });
+  }
+
+  // Check if member is already added
+  if (!project.members.includes(memberId)) {
+    project.members.push(memberId);
+    await project.save();
+  }
+
+  // Return populated project with member details
+  const populatedProject = await Project.findById(req.params.id).populate('members', 'name email');
+  res.json(populatedProject);
 });
+

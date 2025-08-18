@@ -1,23 +1,108 @@
-import React, { useState } from 'react';
-import Auth from './pages/Auth';
-import Dashboard from './pages/Dashboard';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+import { AuthProvider } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
+import AuthGuard from './components/auth/AuthGuard';
+import Layout from './components/common/Layout';
+import Login from './components/auth/Login';
+import Register from './components/auth/Register';
+import Dashboard from './components/dashboard/Dashboard';
+import ProjectDetail from './components/projects/ProjectDetail';
+import ProjectsPage from './components/projects/ProjectsPage';
+import MessagesPage from './components/messages/MessagesPage';
+import DocumentsPage from './components/documents/DocumentsPage';
+import AnalyticsPage from './components/analytics/AnalyticsPage';
+import SettingsPage from './components/settings/SettingsPage';
 
-const App = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-  };
-
+function App() {
   return (
-    <div className="min-h-screen">
-      {isLoggedIn ? (
-        <Dashboard onLogout={handleLogout} />
-      ) : (
-        <Auth setIsLoggedIn={setIsLoggedIn} />
-      )}
-    </div>
+    <AuthProvider>
+      <SocketProvider>
+        <Router>
+          <div className="min-h-screen bg-white text-black">
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route
+                path="/"
+                element={
+                  <AuthGuard>
+                    <Layout>
+                      <Dashboard />
+                    </Layout>
+                  </AuthGuard>
+                }
+              />
+              <Route
+                path="/project/:id"
+                element={
+                  <AuthGuard>
+                    <Layout>
+                      <ProjectDetail />
+                    </Layout>
+                  </AuthGuard>
+                }
+              />
+              <Route
+                  path="/projects"
+                  element={
+                    <AuthGuard>
+                      <Layout>
+                        <ProjectsPage />
+                      </Layout>
+                    </AuthGuard>
+                  }
+                />
+              <Route path="/messages" element={
+                <AuthGuard>
+                  <Layout>
+                    <MessagesPage />
+                  </Layout>
+                </AuthGuard>
+              } />
+              
+              <Route path="/documents" element={
+                <AuthGuard>
+                  <Layout>
+                    <DocumentsPage />
+                  </Layout>
+                </AuthGuard>
+              } />
+              
+              <Route path="/analytics" element={
+                <AuthGuard>
+                  <Layout>
+                    <AnalyticsPage />
+                  </Layout>
+                </AuthGuard>
+              } />
+              
+              <Route path="/settings" element={
+                <AuthGuard>
+                  <Layout>
+                    <SettingsPage />
+                  </Layout>
+                </AuthGuard>
+              } />
+              
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                style: {
+                  background: '#1f2937',
+                  color: '#ffffff',
+                  border: '1px solid #374151',
+                },
+              }}
+            />
+          </div>
+        </Router>
+      </SocketProvider>
+    </AuthProvider>
   );
-};
+}
 
 export default App;

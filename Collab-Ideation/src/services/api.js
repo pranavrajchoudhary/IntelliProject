@@ -1,54 +1,93 @@
 import axios from 'axios';
 
-// We can configure the backend url later here.
+const API_URL = import.meta.env.VITE_API_URL;
+
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
-  timeout: 5000,
+  baseURL: API_URL,
 });
 
-const mockApiCall = (data, success = true, errorMessage = 'Something went wrong.') => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (success) {
-        resolve({ data });
-      } else {
-        reject(new Error(errorMessage));
-      }
-    }, 1000);
-  });
-};
-
-// Placeholder API calls for authentication.
-// We will replace the mockApiCall with the actual axios call to our backend.
-export const login = async (email, password) => {
-  // const response = await api.post('/auth/login', { email, password });
-  // return response.data;
-  
-  console.log('Simulating login with:', email, password);
-  if (email === 'test@user.com' && password === 'password') {
-    return mockApiCall({ message: 'Login successful' });
-  } else {
-    return mockApiCall(null, false, 'Invalid email or password.');
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+export const authAPI = {
+  login: (email, password) =>
+    api.post('/auth/login', { email, password }),
+  register: (name, email, password, role) =>
+    api.post('/auth/register', { name, email, password, role }),
 };
 
-export const register = async (email, password) => {
-  // const response = await api.post('/auth/register', { email, password });
-  // return response.data;
-
-  console.log('Simulating registration with:', email, password);
-  return mockApiCall({ message: 'Registration successful' });
+export const projectAPI = {
+  getProjects: () => api.get('/projects'),
+  getProject: (id) => api.get(`/projects/${id}`),
+  createProject: (data) => api.post('/projects', data),
+  updateProject: (id, data) => api.put(`/projects/${id}`, data),
+  deleteProject: (id) => api.delete(`/projects/${id}`),
+  addMember: (id, memberId) =>
+    api.post(`/projects/${id}/members`, { memberId }),
 };
 
-// We can add other API calls here as you build out your backend.
-export const getProjects = async () => {
-  // const response = await api.get('/projects');
-  // return response.data;
-
-  console.log('Simulating fetching projects');
-  const projects = [
-    { id: 1, name: 'Project Alpha' },
-    { id: 2, name: 'Project Beta' },
-  ];
-  return mockApiCall(projects);
+export const taskAPI = {
+  getProjectTasks: (projectId) => api.get(`/tasks/project/${projectId}`),
+  createTask: (data) => api.post('/tasks', data),
+  updateTask: (id, data) => api.put(`/tasks/${id}`, data),
+  deleteTask: (id) => api.delete(`/tasks/${id}`),
 };
+
+export const aiAPI = {
+  generateIdeas: (prompt, projectId) =>
+    api.post('/ai/generate-ideas', { prompt, projectId }),
+};
+
+export const documentAPI = {
+  getProjectDocs: (projectId) => api.get(`/documents/project/${projectId}`),
+  getDocument: (id) => api.get(`/documents/${id}`),
+  createDocument: (data) => api.post('/documents', data),
+  updateDocument: (id, data) => api.put(`/documents/${id}`, data),
+  getVersions: (id) => api.get(`/documents/${id}/versions`),
+  restoreVersion: (id, versionId) => api.post(`/documents/${id}/versions/${versionId}/restore`)
+};
+
+export const userAPI = {
+  getProfile: () => api.get('/users/profile'),
+  updateProfile: (data) => api.put('/users/profile', data),
+  getUsers: () => api.get('/users'),
+};
+
+export const messageAPI = {
+  getProjectMessages: (projectId) => api.get(`/messages/project/${projectId}`),
+  getUserMessages: () => api.get('/messages/user'),
+  createMessage: (data) => api.post('/messages', data),
+  markAsRead: (messageId) => api.put(`/messages/${messageId}/read`)
+};
+
+export const analyticsAPI = {
+  getDashboardStats: () => api.get('/analytics/dashboard'),
+  getProjectAnalytics: (projectId) => api.get(`/analytics/project/${projectId}`)
+};
+
+export const settingsAPI = {
+  getUserSettings: () => api.get('/settings'),
+  updateSettings: (data) => api.put('/settings', data),
+  changePassword: (data) => api.put('/settings/password', data),
+  deleteAccount: () => api.delete('/settings/account')
+};
+
+
+
+export default api;
