@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      // You can add token verification here if needed
+      // We can add token verification here if needed
       dispatch({ type: 'SET_LOADING', payload: false });
     } else {
       dispatch({ type: 'SET_LOADING', payload: false });

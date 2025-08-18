@@ -1,42 +1,89 @@
 const fetch = require('node-fetch');
+
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
+// Returns plain text from Gemini
 async function generateText(prompt) {
-    const MODEL = "gemini-1.5-flash";
+  const MODEL = 'gemini-2.0-flash-exp';
 
-    const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`,
-        {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }]
-            })
-        }
-    );
-
-    const data = await response.json();
-
- 
-    if (data.error) {
-        throw new Error(data.error.message || "Gemini API error");
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+      }),
     }
+  );
 
- 
-    let rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!rawText) {
-        throw new Error("No content returned from Gemini");
-    }
+  const data = await response.json();
 
+  if (data && data.error) {
+    throw new Error(data.error.message || 'Gemini API error');
+  }
 
-  
-    try {
-        // Remove markdown code fences if present
-        rawText = rawText.replace(/```json|```/g, "").trim();
-        return JSON.parse(rawText);
-    } catch (err) {
-        throw new Error("Invalid JSON format from Gemini");
-    }
+ const rawText =
+  data &&
+  Array.isArray(data.candidates) &&
+  data.candidates[0] &&
+  data.candidates.content &&
+  Array.isArray(data.candidates.content.parts) &&
+  data.candidates.content.parts &&
+  typeof data.candidates.content.parts.text === 'string'
+    ? data.candidates.content.parts.text
+    : null;
+
+  if (!rawText) {
+    throw new Error('No content returned from Gemini');
+  }
+
+  return rawText;
 }
 
-module.exports = { generateText };
+//Returns JSON (parsed) from Gemini for structured prompts
+async function generateStructuredData(prompt) {
+  const MODEL = 'gemini-2.0-flash-exp';
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+      }),
+    }
+  );
+
+  const data = await response.json();
+
+  if (data && data.error) {
+    throw new Error(data.error.message || 'Gemini API error');
+  }
+
+  let rawText =
+  data &&
+  Array.isArray(data.candidates) &&
+  data.candidates &&
+  data.candidates.content &&
+  Array.isArray(data.candidates.content.parts) &&
+  data.candidates.content.parts &&
+  typeof data.candidates.content.parts.text === 'string'
+    ? data.candidates.content.parts.text
+    : null;
+
+  if (!rawText) {
+    throw new Error('No content returned from Gemini');
+  }
+
+  try {
+    // Strip markdown fences if the model wrapped the JSON
+    rawText = rawText.replace(/``````/g, '').trim();
+    return JSON.parse(rawText);
+  } catch (err) {
+    throw new Error('Invalid JSON format from Gemini');
+  }
+}
+
+module.exports = { generateText, generateStructuredData };

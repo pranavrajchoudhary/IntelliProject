@@ -17,7 +17,6 @@ const Login = () => {
       await login(formData.email, formData.password);
       navigate('/');
     } catch (error) {
-      // Error handled in context
     } finally {
       setLoading(false);
     }

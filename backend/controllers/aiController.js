@@ -11,7 +11,7 @@ Return only valid JSON array, no markdown, no code block, no explanation.`;
 
         let isProjectMode = false;
 
-        // If projectId is provided → add project context
+        //If projectId is provided → add project context
         if (projectId) {
             const project = await Project.findById(projectId);
             if (!project) {
