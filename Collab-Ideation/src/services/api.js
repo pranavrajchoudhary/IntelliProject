@@ -69,6 +69,25 @@ export const userAPI = {
   getUsers: () => api.get('/users'),
 };
 
+export const messageAPI = {
+  getProjectMessages: (projectId) => api.get(`/messages/project/${projectId}`),
+  getUserMessages: () => api.get('/messages/user'),
+  createMessage: (data) => api.post('/messages', data),
+  markAsRead: (messageId) => api.put(`/messages/${messageId}/read`)
+};
+
+export const analyticsAPI = {
+  getDashboardStats: () => api.get('/analytics/dashboard'),
+  getProjectAnalytics: (projectId) => api.get(`/analytics/project/${projectId}`)
+};
+
+export const settingsAPI = {
+  getUserSettings: () => api.get('/settings'),
+  updateSettings: (data) => api.put('/settings', data),
+  changePassword: (data) => api.put('/settings/password', data),
+  deleteAccount: () => api.delete('/settings/account')
+};
+
 
 
 export default api;

@@ -10,6 +10,10 @@ import Register from './components/auth/Register';
 import Dashboard from './components/dashboard/Dashboard';
 import ProjectDetail from './components/projects/ProjectDetail';
 import ProjectsPage from './components/projects/ProjectsPage';
+import MessagesPage from './components/messages/MessagesPage';
+import DocumentsPage from './components/documents/DocumentsPage';
+import AnalyticsPage from './components/analytics/AnalyticsPage';
+import SettingsPage from './components/settings/SettingsPage';
 
 function App() {
   return (
@@ -50,58 +54,38 @@ function App() {
                     </AuthGuard>
                   }
                 />
-              <Route
-                path="/messages"
-                element={
-                  <AuthGuard>
-                    <Layout>
-                      <div className="p-8 text-center">
-                        <h1 className="text-2xl font-bold">Messages Page</h1>
-                        <p className="text-gray-600 mt-2">Coming Soon</p>
-                      </div>
-                    </Layout>
-                  </AuthGuard>
-                }
-              />
-              <Route
-                path="/documents"
-                element={
-                  <AuthGuard>
-                    <Layout>
-                      <div className="p-8 text-center">
-                        <h1 className="text-2xl font-bold">Documents Page</h1>
-                        <p className="text-gray-600 mt-2">Coming Soon</p>
-                      </div>
-                    </Layout>
-                  </AuthGuard>
-                }
-              />
-              <Route
-                path="/analytics"
-                element={
-                  <AuthGuard>
-                    <Layout>
-                      <div className="p-8 text-center">
-                        <h1 className="text-2xl font-bold">Analytics Page</h1>
-                        <p className="text-gray-600 mt-2">Coming Soon</p>
-                      </div>
-                    </Layout>
-                  </AuthGuard>
-                }
-              />
-              <Route
-                path="/settings"
-                element={
-                  <AuthGuard>
-                    <Layout>
-                      <div className="p-8 text-center">
-                        <h1 className="text-2xl font-bold">Settings Page</h1>
-                        <p className="text-gray-600 mt-2">Coming Soon</p>
-                      </div>
-                    </Layout>
-                  </AuthGuard>
-                }
-              />
+              <Route path="/messages" element={
+                <AuthGuard>
+                  <Layout>
+                    <MessagesPage />
+                  </Layout>
+                </AuthGuard>
+              } />
+              
+              <Route path="/documents" element={
+                <AuthGuard>
+                  <Layout>
+                    <DocumentsPage />
+                  </Layout>
+                </AuthGuard>
+              } />
+              
+              <Route path="/analytics" element={
+                <AuthGuard>
+                  <Layout>
+                    <AnalyticsPage />
+                  </Layout>
+                </AuthGuard>
+              } />
+              
+              <Route path="/settings" element={
+                <AuthGuard>
+                  <Layout>
+                    <SettingsPage />
+                  </Layout>
+                </AuthGuard>
+              } />
+              
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
             <Toaster
