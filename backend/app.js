@@ -6,13 +6,14 @@ const rateLimit = require('express-rate-limit');
 const authRoutes = require('./routes/auth');
 const projectRoutes = require('./routes/projects');
 const taskRoutes = require('./routes/tasks');
-const aiRoutes = require('./routes/ai');
 const docRoutes = require('./routes/documents');
 const errorHandler = require('./middleware/error');
 const userRoutes = require('./routes/users');
 const messageRoutes = require('./routes/messages');
 const analyticsRoutes = require('./routes/analytics');
 const settingsRoutes = require('./routes/settings');
+const aiRoutes = require('./routes/ai');
+const aiChatRoutes = require('./routes/aiChat');
 
 const app = express();
 
@@ -24,15 +25,22 @@ app.use(rateLimit({ windowMs: 60*1000, max: 200 }));
 
 app.use('/auth', authRoutes);
 app.use('/projects', projectRoutes);
-app.use('/tasks', taskRoutes);
-app.use('/ai', aiRoutes);
+app.use('/tasks', taskRoutes); 
 app.use('/documents', docRoutes);
 app.use('/users', userRoutes);
 app.use('/messages', messageRoutes);
 app.use('/analytics', analyticsRoutes);
 app.use('/settings', settingsRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/ai-chat', aiChatRoutes);
 
 app.get('/', (req, res) => res.json({ status: 'ok' }));
+
+app.get('/health', (req, res) => res.json({ 
+  status: 'ok', 
+  message: 'Backend is awake and ready!',
+  timestamp: new Date().toISOString() 
+}));
 
 app.use(errorHandler);
 

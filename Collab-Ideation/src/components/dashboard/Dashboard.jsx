@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import ProjectCard from '../projects/ProjectCard';
 import CreateProjectModal from '../projects/CreateProjectModal';
 import AIIdeaGenerator from '../ai/AIIdeaGenerator';
+import DashboardAIChat from '../ai/DashboardAIChat';
 
 const Dashboard = () => {
   const [projects, setProjects] = useState([]);
@@ -35,7 +36,7 @@ const Dashboard = () => {
       const projects = projectsRes.data;
       const users = usersRes.data;
 
-      // Fetch task counts for each project
+      //Fetch task counts for each project
       const projectsWithStats = await Promise.all(
         projects.map(async (project) => {
           try {
@@ -53,7 +54,7 @@ const Dashboard = () => {
         })
       );
 
-      // Calculate stats
+      //Calculate stats
       const totalTasks = projectsWithStats.reduce((sum, p) => sum + p.taskCount, 0);
       const completedTasks = projectsWithStats.reduce((sum, p) => sum + p.completedTasks, 0);
 
@@ -65,7 +66,7 @@ const Dashboard = () => {
         teamMembers: users.length
       });
 
-      // Generate recent activity
+      //Generate recent activity
       const allTasks = projectsWithStats.flatMap(p => p.tasks.map(t => ({ ...t, projectTitle: p.title })));
       const recentTasks = allTasks
         .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))

@@ -22,7 +22,6 @@ const Register = () => {
       await register(formData.name, formData.email, formData.password, formData.role);
       navigate('/');
     } catch (error) {
-      // Error handled in context
     } finally {
       setLoading(false);
     }

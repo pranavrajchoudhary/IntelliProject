@@ -13,7 +13,7 @@ import {
   User
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate, useLocation, Link } from 'react-router-dom'; // Add Link import
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 
 const Layout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);

@@ -49,11 +49,6 @@ export const taskAPI = {
   deleteTask: (id) => api.delete(`/tasks/${id}`),
 };
 
-export const aiAPI = {
-  generateIdeas: (prompt, projectId) =>
-    api.post('/ai/generate-ideas', { prompt, projectId }),
-};
-
 export const documentAPI = {
   getProjectDocs: (projectId) => api.get(`/documents/project/${projectId}`),
   getDocument: (id) => api.get(`/documents/${id}`),
@@ -86,6 +81,16 @@ export const settingsAPI = {
   updateSettings: (data) => api.put('/settings', data),
   changePassword: (data) => api.put('/settings/password', data),
   deleteAccount: () => api.delete('/settings/account')
+};
+
+export const aiAPI = {
+  generateIdeas: (prompt, projectId) => api.post('/api/ai/generate-ideas', { prompt, projectId })
+};
+
+export const aiChatAPI = {
+  chat: (message) => api.post('/api/ai-chat/chat', { message }),
+  projectChat: (message, projectId) => api.post('/api/ai-chat/project-chat', { message, projectId }),
+  generateIdeas: (topic, industry) => api.post('/api/ai-chat/project-ideas', { topic, industry })
 };
 
 

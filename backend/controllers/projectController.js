@@ -29,7 +29,7 @@ exports.getProjectById = asyncHandler(async (req, res) => {
     
   if (!project) return res.status(404).json({ message: 'Project not found' });
   
-  // Filter out any null members that might exist
+  //Filters out any null members that might exist
   project.members = project.members.filter(member => member && member.name);
   
   res.json(project);
@@ -46,11 +46,10 @@ exports.deleteProject = asyncHandler(async (req, res) => {
   res.json({ message: 'Project deleted' });
 });
 
-// Fix controllers/projectController.js addMember function
 exports.addMember = asyncHandler(async (req, res) => {
   const { memberId } = req.body;
   
-  // Validate member exists
+  // Validates if member exists
   const memberUser = await User.findById(memberId);
   if (!memberUser) {
     return res.status(404).json({ message: 'User not found' });
@@ -61,13 +60,13 @@ exports.addMember = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Project not found' });
   }
 
-  // Check if member is already added
+  //Check if member is already added
   if (!project.members.includes(memberId)) {
     project.members.push(memberId);
     await project.save();
   }
 
-  // Return populated project with member details
+  //Return populated project with member details
   const populatedProject = await Project.findById(req.params.id).populate('members', 'name email');
   res.json(populatedProject);
 });

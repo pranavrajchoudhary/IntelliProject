@@ -1,5 +1,3 @@
-// src/components/projects/ProjectDetail.jsx - FIXED VERSION
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -49,7 +47,7 @@ const ProjectDetail = () => {
       setTasks(response.data || []);
     } catch (error) {
       console.error('Failed to fetch tasks:', error);
-      setTasks([]); // Always ensure tasks is an array
+      setTasks([]); // Always ensures tasks is an array
     } finally {
       setLoading(false);
     }
@@ -175,8 +173,7 @@ const ProjectDetail = () => {
           <Chat projectId={id} onClose={() => setShowChat(false)} />
         </motion.div>
       )}
-
-      {/* FIXED Kanban Board */}
+      
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {columns.map((column) => {
@@ -192,7 +189,6 @@ const ProjectDetail = () => {
                     </span>
                   </div>
 
-                  {/* FIXED Droppable with all required props */}
                   <Droppable droppableId={column.id}>
                     {(provided, snapshot) => (
                       <div

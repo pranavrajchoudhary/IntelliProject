@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react'; 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
@@ -14,8 +14,19 @@ import MessagesPage from './components/messages/MessagesPage';
 import DocumentsPage from './components/documents/DocumentsPage';
 import AnalyticsPage from './components/analytics/AnalyticsPage';
 import SettingsPage from './components/settings/SettingsPage';
+import BackendLoader from './components/BackendLoader'; 
 
 function App() {
+  const [backendReady, setBackendReady] = useState(false);
+
+  const handleBackendReady = () => {
+    setBackendReady(true);
+  };
+
+   if (!backendReady) {
+    return <BackendLoader onBackendReady={handleBackendReady} />;
+  }
+
   return (
     <AuthProvider>
       <SocketProvider>
