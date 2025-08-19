@@ -38,12 +38,13 @@ export const projectAPI = {
   createProject: (data) => api.post('/projects', data),
   updateProject: (id, data) => api.put(`/projects/${id}`, data),
   deleteProject: (id) => api.delete(`/projects/${id}`),
-  addMember: (id, memberId) =>
-    api.post(`/projects/${id}/members`, { memberId }),
+  addMember: (id, memberId) => api.post(`/projects/${id}/members`, { memberId }),
+  removeMember: (id, memberId) => api.delete(`/projects/${id}/members/${memberId}`)
 };
 
 export const taskAPI = {
   getProjectTasks: (projectId) => api.get(`/tasks/project/${projectId}`),
+  getTask: (id) => api.get(`/tasks/${id}`),
   createTask: (data) => api.post('/tasks', data),
   updateTask: (id, data) => api.put(`/tasks/${id}`, data),
   deleteTask: (id) => api.delete(`/tasks/${id}`),
@@ -62,6 +63,8 @@ export const userAPI = {
   getProfile: () => api.get('/users/profile'),
   updateProfile: (data) => api.put('/users/profile', data),
   getUsers: () => api.get('/users'),
+  updateUserRole: (userId, data) => api.put(`/users/${userId}/role`, data),
+  searchUsers: (query) => api.get(`/users/search?query=${query}`)
 };
 
 export const messageAPI = {

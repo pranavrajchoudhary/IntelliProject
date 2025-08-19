@@ -10,23 +10,30 @@ const AIIdeaGenerator = ({ onClose, projectId, projectTitle }) => {
   const [loading, setLoading] = useState(false);
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) {
-      toast.error('Please enter a prompt');
-      return;
-    }
+  if (!prompt.trim()) {
+    toast.error('Please enter a prompt');
+    return;
+  }
 
-    setLoading(true);
-    try {
-      const response = await aiAPI.generateIdeas(prompt, projectId);
-      setIdeas(response.data.ideas);
+  setLoading(true);
+  try {
+    const response = await aiAPI.generateIdeas(prompt, projectId);
+    setIdeas(response.data.ideas);
+    
+    // Show different message based on success
+    if (response.data.mode === 'fallback') {
+      toast.info('AI service had issues - showing fallback ideas');
+    } else {
       toast.success('Ideas generated successfully!');
-    } catch (error) {
-      console.error('AI Error:', error);
-      toast.error(error.response?.data?.message || 'Failed to generate ideas');
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (error) {
+    console.error('AI Error:', error);
+    toast.error('Failed to generate ideas - please try again');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const getPriorityColor = (priority) => {
     switch (priority?.toLowerCase()) {

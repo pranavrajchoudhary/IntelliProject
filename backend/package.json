@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@google/genai": "^1.15.0",
     "axios": "^1.11.0",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
@@ -18,8 +19,14 @@
     "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-   "devDependencies": {
+  "devDependencies": {
     "nodemon": "^3.0.1"
   },
-   "keywords": ["nodejs", "express", "mongodb", "socket.io", "ai"]
+  "keywords": [
+    "nodejs",
+    "express",
+    "mongodb",
+    "socket.io",
+    "ai"
+  ]
 }
