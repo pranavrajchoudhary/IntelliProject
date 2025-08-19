@@ -21,7 +21,7 @@ const CreateTaskModal = ({ projectId, initialStatus = 'todo', onClose, onSuccess
     try {
       const taskData = {
         ...formData,
-        project: projectId,
+        projectId: projectId,     // Changed from "project" to "projectId"
         dueDate: formData.dueDate || undefined
       };
       
