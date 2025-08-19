@@ -4,7 +4,6 @@ import { Send, X, User } from 'lucide-react';
 import { useSocket } from '../../context/SocketContext';
 import { useAuth } from '../../context/AuthContext';
 import { messageAPI } from '../../services/api';
-import ProjectAIChat from './ProjectAIChat';
 
 const Chat = ({ projectId, onClose }) => {
   const [messages, setMessages] = useState([]);

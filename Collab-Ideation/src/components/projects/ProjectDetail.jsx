@@ -8,6 +8,8 @@ import TaskCard from '../tasks/TaskCard';
 import CreateTaskModal from '../tasks/CreateTaskModal';
 import AIIdeaGenerator from '../ai/AIIdeaGenerator';
 import Chat from '../chat/Chat';
+import EditTaskModal from '../tasks/EditTaskModal';
+import { useAuth } from '../../context/AuthContext';
 
 const ProjectDetail = () => {
   const { id } = useParams();
@@ -18,6 +20,9 @@ const ProjectDetail = () => {
   const [showAIGenerator, setShowAIGenerator] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [activeColumn, setActiveColumn] = useState('');
+  const [editingTask, setEditingTask] = useState(null);
+  const { user } = useAuth();
+
 
   const columns = [
     { id: 'todo', title: 'To Do', color: 'border-gray-300' },
@@ -56,6 +61,21 @@ const ProjectDetail = () => {
   const getTasksByStatus = (status) => {
     return tasks.filter(task => task.status === status) || [];
   };
+
+  const handleEditTask = (task) => {
+  setEditingTask(task);
+};
+
+const handleDeleteTask = (taskId) => {
+  setTasks(tasks.filter(task => task._id !== taskId));
+};
+
+const handleTaskUpdated = (updatedTask) => {
+  setTasks(tasks.map(task => 
+    task._id === updatedTask._id ? updatedTask : task
+  ));
+  setEditingTask(null);
+};
 
   const handleDragEnd = async (result) => {
     const { destination, source, draggableId } = result;
@@ -213,7 +233,13 @@ const ProjectDetail = () => {
                                   snapshot.isDragging ? 'rotate-3 shadow-lg' : ''
                                 }`}
                               >
-                                <TaskCard task={task} />
+                               <TaskCard 
+                                    key={task._id}
+                                    task={task}
+                                    project={project}
+                                    onEdit={handleEditTask}
+                                    onDelete={handleDeleteTask}
+                                  />
                               </div>
                             )}
                           </Draggable>
@@ -260,6 +286,15 @@ const ProjectDetail = () => {
         <AIIdeaGenerator
           projectId={id}
           onClose={() => setShowAIGenerator(false)}
+        />
+      )}
+
+      {editingTask && (
+        <EditTaskModal
+          task={editingTask}
+          projectMembers={project?.members || []}
+          onClose={() => setEditingTask(null)}
+          onSuccess={handleTaskUpdated}
         />
       )}
     </div>
