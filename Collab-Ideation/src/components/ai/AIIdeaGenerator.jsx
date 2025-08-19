@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Lightbulb, Loader2 } from 'lucide-react';
+import { X, Lightbulb, Loader2, Sparkles } from 'lucide-react';
 import { aiAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 
-const AIIdeaGenerator = ({ onClose, projectId }) => {
+const AIIdeaGenerator = ({ onClose, projectId, projectTitle }) => {
   const [prompt, setPrompt] = useState('');
   const [ideas, setIdeas] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) return;
+    if (!prompt.trim()) {
+      toast.error('Please enter a prompt');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -18,6 +21,7 @@ const AIIdeaGenerator = ({ onClose, projectId }) => {
       setIdeas(response.data.ideas);
       toast.success('Ideas generated successfully!');
     } catch (error) {
+      console.error('AI Error:', error);
       toast.error(error.response?.data?.message || 'Failed to generate ideas');
     } finally {
       setLoading(false);
@@ -34,119 +38,112 @@ const AIIdeaGenerator = ({ onClose, projectId }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    >
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white border-2 border-black p-8 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto"
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden"
       >
-        <div className="flex items-center justify-between mb-6">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center">
-              <Lightbulb className="w-5 h-5 text-white" />
+            <Sparkles className="h-6 w-6 text-purple-600" />
+            <div>
+              <h3 className="text-lg font-semibold">AI Idea Generator</h3>
+              {projectTitle && (
+                <p className="text-sm text-gray-600">For project: {projectTitle}</p>
+              )}
             </div>
-            <h2 className="text-2xl font-bold text-black">AI Idea Generator</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <X className="w-6 h-6" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-black mb-2">
-              What would you like ideas for?
+        {/* Content */}
+        <div className="p-6">
+          {/* Input Section */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              What kind of ideas do you need?
             </label>
-            <div className="flex space-x-4">
-              <input
-                type="text"
-                className="flex-1 px-4 py-3 border-2 border-gray-300 focus:border-black focus:outline-none transition-colors"
-                placeholder="E.g., mobile app features, marketing strategies, UI improvements..."
+            <div className="flex space-x-3">
+              <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleGenerate()}
+                placeholder="E.g., 'new features for user engagement', 'mobile app improvements', 'marketing strategies'..."
+                className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                rows="3"
               />
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+              <button
                 onClick={handleGenerate}
                 disabled={loading || !prompt.trim()}
-                className="flex items-center space-x-2 px-6 py-3 bg-black text-white hover:bg-gray-800 transition-colors disabled:opacity-50"
+                className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
               >
-                {loading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Lightbulb className="w-5 h-5" />
-                )}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4" />}
                 <span>{loading ? 'Generating...' : 'Generate'}</span>
-              </motion.button>
+              </button>
             </div>
           </div>
 
+          {/* Results */}
           {ideas.length > 0 && (
-            <div>
-              <h3 className="text-lg font-bold text-black mb-4">Generated Ideas</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {ideas.map((idea, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="bg-white border-2 border-gray-200 p-4 hover:border-black transition-colors"
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <h4 className="font-bold text-black">
-                        {idea.Title || idea.text}
-                      </h4>
-                      {idea.Priority && (
-                        <span className={`px-2 py-1 text-xs text-white rounded ${getPriorityColor(idea.Priority)}`}>
-                          {idea.Priority}
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              <h4 className="font-semibold text-gray-800 flex items-center space-x-2">
+                <Sparkles className="h-4 w-4" />
+                <span>Generated Ideas ({ideas.length})</span>
+              </h4>
+              
+              {ideas.map((idea, index) => (
+                <div key={index} className="bg-gray-50 rounded-lg p-4 border">
+                  <div className="flex items-start justify-between mb-2">
+                    <h5 className="font-medium text-gray-900">
+                      {idea.text || idea.Title}
+                    </h5>
+                    <div className="flex items-center space-x-2 text-xs">
+                      <span className={`px-2 py-1 rounded-full text-white ${getPriorityColor(idea.priority || idea.Priority)}`}>
+                        {idea.priority || idea.Priority}
+                      </span>
+                      {(idea.feasibility || idea.Feasibility) && (
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                          Feasibility: {idea.feasibility || idea.Feasibility}/10
                         </span>
                       )}
                     </div>
-                    
-                    {idea.ShortDescription && (
-                      <p className="text-sm text-gray-600 mb-2">
-                        {idea.ShortDescription}
-                      </p>
-                    )}
-                    
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      {idea.Category && (
-                        <span className="bg-gray-100 px-2 py-1 rounded">
-                          {idea.Category}
-                        </span>
-                      )}
-                      {idea.Feasibility && (
-                        <span>Feasibility: {idea.Feasibility}/10</span>
-                      )}
-                    </div>
-                    
-                    {idea.Tags && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {idea.Tags.split(',').map((tag, tagIndex) => (
-                          <span
-                            key={tagIndex}
-                            className="bg-black text-white px-2 py-1 text-xs rounded"
-                          >
-                            {tag.trim()}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </motion.div>
-                ))}
-              </div>
+                  </div>
+                  
+                  <p className="text-gray-600 text-sm mb-2">
+                    {idea.description || idea.ShortDescription}
+                  </p>
+                  
+                  {(idea.category || idea.Category) && (
+                    <span className="inline-block px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs">
+                      {idea.category || idea.Category}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {loading && (
+            <div className="text-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-purple-600" />
+              <p className="text-gray-600">AI is generating creative ideas...</p>
             </div>
           )}
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 };
 

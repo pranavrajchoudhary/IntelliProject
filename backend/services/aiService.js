@@ -23,16 +23,16 @@ async function generateText(prompt) {
     throw new Error(data.error.message || 'Gemini API error');
   }
 
- const rawText =
-  data &&
-  Array.isArray(data.candidates) &&
-  data.candidates[0] &&
-  data.candidates.content &&
-  Array.isArray(data.candidates.content.parts) &&
-  data.candidates.content.parts &&
-  typeof data.candidates.content.parts.text === 'string'
-    ? data.candidates.content.parts.text
-    : null;
+  const rawText = 
+      data &&
+      Array.isArray(data.candidates) &&
+      data.candidates[0] &&
+      data.candidates.content &&
+      Array.isArray(data.candidates.content.parts) &&
+      data.candidates.content.parts &&
+      typeof data.candidates.content.parts.text === 'string'
+        ? data.candidates.content.parts.text
+        : null;
 
   if (!rawText) {
     throw new Error('No content returned from Gemini');
@@ -62,24 +62,24 @@ async function generateStructuredData(prompt) {
     throw new Error(data.error.message || 'Gemini API error');
   }
 
-  let rawText =
-  data &&
-  Array.isArray(data.candidates) &&
-  data.candidates &&
-  data.candidates.content &&
-  Array.isArray(data.candidates.content.parts) &&
-  data.candidates.content.parts &&
-  typeof data.candidates.content.parts.text === 'string'
-    ? data.candidates.content.parts.text
-    : null;
+  let rawText = 
+      data &&
+      Array.isArray(data.candidates) &&
+      data.candidates[0] &&
+      data.candidates.content &&
+      Array.isArray(data.candidates.content.parts) &&
+      data.candidates.content.parts &&
+      typeof data.candidates.content.parts.text === 'string'
+        ? data.candidates.content.parts.text
+        : null;
 
   if (!rawText) {
     throw new Error('No content returned from Gemini');
   }
 
   try {
-    // Strip markdown fences if the model wrapped the JSON
-    rawText = rawText.replace(/``````/g, '').trim();
+    // Strip markdown fences and extra whitespace
+    rawText = rawText.replace(/``````\n?/g, '').trim();
     return JSON.parse(rawText);
   } catch (err) {
     throw new Error('Invalid JSON format from Gemini');

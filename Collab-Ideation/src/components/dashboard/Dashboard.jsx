@@ -6,7 +6,6 @@ import { useAuth } from '../../context/AuthContext';
 import ProjectCard from '../projects/ProjectCard';
 import CreateProjectModal from '../projects/CreateProjectModal';
 import AIIdeaGenerator from '../ai/AIIdeaGenerator';
-import DashboardAIChat from '../ai/DashboardAIChat';
 
 const Dashboard = () => {
   const [projects, setProjects] = useState([]);
