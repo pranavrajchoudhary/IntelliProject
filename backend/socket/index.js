@@ -19,6 +19,24 @@ function initSocket(io) {
       socket.to(data.roomId).emit('chatMessage', data);
     });
 
+    // New message status events
+    socket.on('messageDelivered', (data) => {
+      socket.to(data.roomId).emit('messageDelivered', data);
+    });
+
+    socket.on('messageRead', (data) => {
+      socket.to(data.roomId).emit('messageRead', data);
+    });
+
+    // User typing indicators
+    socket.on('typing', (data) => {
+      socket.to(data.roomId).emit('typing', data);
+    });
+
+    socket.on('stopTyping', (data) => {
+      socket.to(data.roomId).emit('stopTyping', data);
+    });
+
     socket.on('disconnect', () => {
       console.log('socket disconnected', socket.id);
     });

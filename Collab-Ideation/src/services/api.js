@@ -71,12 +71,16 @@ export const messageAPI = {
   getProjectMessages: (projectId) => api.get(`/messages/project/${projectId}`),
   getUserMessages: () => api.get('/messages/user'),
   createMessage: (data) => api.post('/messages', data),
-  markAsRead: (messageId) => api.put(`/messages/${messageId}/read`)
+  markAsRead: (messageId) => api.put(`/messages/${messageId}/read`),
+  getUnreadCounts: () => api.get('/messages/unread-counts'),
 };
 
 export const analyticsAPI = {
   getDashboardStats: () => api.get('/analytics/dashboard'),
-  getProjectAnalytics: (projectId) => api.get(`/analytics/project/${projectId}`)
+  getProjectAnalytics: (projectId) => api.get(`/analytics/project/${projectId}`),
+  getLatestSnapshot: () => api.get('/analytics/snapshot/latest'),
+  saveStatsSnapshot: (force = false) => api.post(`/analytics/snapshot?force=${force}`),
+  getHistoricalTrends: (days = 30) => api.get(`/analytics/trends?days=${days}`)
 };
 
 export const settingsAPI = {
@@ -97,6 +101,11 @@ export const aiChatAPI = {
   generateIdeas: (topic, industry) => api.post('/api/ai-chat/project-ideas', { topic, industry })
 };
 
+export const uploadAPI = {
+  uploadAudio: (formData) => api.post('/upload/audio', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+};
 
 
 export default api;

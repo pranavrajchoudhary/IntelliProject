@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Search, Users, MessageSquare, Clock, Check, X } from 'lucide-react';
-import { messageAPI, projectAPI } from '../../services/api';
+import { Send, Search, Users, MessageSquare, Clock, Check, CheckCheck, Mic, X } from 'lucide-react';
+import { messageAPI, projectAPI, uploadAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useSocket } from '../../context/SocketContext';
 import toast from 'react-hot-toast';
 import AIChat from '../chat/AIChat';
+import VoiceRecorder from './VoiceRecorder';
+import VoicePlayer from './VoicePlayer';
 
 const MessagesPage = () => {
   const [projects, setProjects] = useState([]);
@@ -13,18 +16,62 @@ const MessagesPage = () => {
   const [newMessage, setNewMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [unreadCounts, setUnreadCounts] = useState([]);
+  const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
+  
   const { user } = useAuth();
+  const { socket } = useSocket();
 
   useEffect(() => {
     fetchProjects();
     fetchUserMessages();
+    fetchUnreadCounts();
   }, []);
 
   useEffect(() => {
     if (selectedProject && !selectedProject.isAI) {
       fetchProjectMessages(selectedProject._id);
+      markProjectMessagesAsRead(selectedProject._id);
     }
   }, [selectedProject]);
+
+  // Socket event listeners
+  useEffect(() => {
+    if (socket) {
+      socket.on('newMessage', handleNewMessage);
+      socket.on('messageDelivered', handleMessageDelivered);
+      socket.on('messageRead', handleMessageRead);
+
+      return () => {
+        socket.off('newMessage', handleNewMessage);
+        socket.off('messageDelivered', handleMessageDelivered);
+        socket.off('messageRead', handleMessageRead);
+      };
+    }
+  }, [socket]);
+
+  const handleNewMessage = (message) => {
+    setMessages(prev => [...prev, message]);
+    fetchUnreadCounts(); // Update unread counts
+  };
+
+  const handleMessageDelivered = ({ messageId }) => {
+    setMessages(prev => prev.map(msg => 
+      msg._id === messageId ? { ...msg, status: 'delivered' } : msg
+    ));
+  };
+
+  const handleMessageRead = ({ messageId, readBy }) => {
+    setMessages(prev => prev.map(msg => 
+      msg._id === messageId 
+        ? { 
+            ...msg, 
+            status: 'read',
+            readBy: [...msg.readBy, { user: readBy, readAt: new Date() }]
+          } 
+        : msg
+    ));
+  };
 
   const fetchProjects = async () => {
     try {
@@ -32,6 +79,15 @@ const MessagesPage = () => {
       setProjects(response.data);
     } catch (error) {
       toast.error('Failed to fetch projects');
+    }
+  };
+
+  const fetchUnreadCounts = async () => {
+    try {
+      const response = await messageAPI.getUnreadCounts();
+      setUnreadCounts(response.data);
+    } catch (error) {
+      console.error('Failed to fetch unread counts:', error);
     }
   };
 
@@ -50,8 +106,30 @@ const MessagesPage = () => {
     try {
       const response = await messageAPI.getProjectMessages(projectId);
       setMessages(response.data);
+      
+      // Join socket room
+      if (socket) {
+        socket.emit('joinRoom', projectId);
+      }
     } catch (error) {
       toast.error('Failed to fetch project messages');
+    }
+  };
+
+  const markProjectMessagesAsRead = async (projectId) => {
+    try {
+      const unreadMessages = messages.filter(
+        msg => msg.sender._id !== user._id && 
+               !msg.readBy.some(r => r.user === user._id)
+      );
+
+      await Promise.all(
+        unreadMessages.map(msg => messageAPI.markAsRead(msg._id))
+      );
+
+      fetchUnreadCounts(); // Update counts
+    } catch (error) {
+      console.error('Failed to mark messages as read:', error);
     }
   };
 
@@ -59,14 +137,8 @@ const MessagesPage = () => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedProject) return;
 
-    // Handle AI Chat locally - don't send to backend
-    if (selectedProject.isAI) {
-      // AI chat is handled by the AIChat component itself
-      // This function shouldn't be called for AI chat
-      return;
-    }
+    if (selectedProject.isAI) return;
 
-    // Adds optimistic update with sending status
     const tempMessage = {
       _id: Date.now().toString(),
       content: newMessage,
@@ -74,7 +146,7 @@ const MessagesPage = () => {
       createdAt: new Date().toISOString(),
       status: 'sending'
     };
-    
+
     setMessages([...messages, tempMessage]);
     setNewMessage('');
 
@@ -83,22 +155,72 @@ const MessagesPage = () => {
         content: newMessage,
         projectId: selectedProject._id
       });
-      
-      // Update message status to sent
+
       setMessages(prev => prev.map(msg => 
-        msg._id === tempMessage._id 
-          ? { ...response.data, status: 'sent' } 
-          : msg
+        msg._id === tempMessage._id ? { ...response.data, status: 'delivered' } : msg
       ));
     } catch (error) {
-      // Update message status to failed
       setMessages(prev => prev.map(msg => 
-        msg._id === tempMessage._id 
-          ? { ...msg, status: 'failed' } 
-          : msg
+        msg._id === tempMessage._id ? { ...msg, status: 'failed' } : msg
       ));
       toast.error('Failed to send message');
     }
+  };
+
+  const sendVoiceMessage = async (audioBlob, duration) => {
+  if (!selectedProject || selectedProject.isAI) return;
+
+  try {
+    // First upload the audio file to Cloudinary
+    const formData = new FormData();
+    formData.append('audio', audioBlob, `voice-${Date.now()}.wav`);
+
+    toast.loading('Uploading voice message...');
+    const uploadResponse = await uploadAPI.uploadAudio(formData);
+    const audioUrl = uploadResponse.data.url;
+
+    // Then create the message with the Cloudinary URL
+    const response = await messageAPI.createMessage({
+      content: `Voice message (${Math.floor(duration)}s)`,
+      projectId: selectedProject._id,
+      type: 'voice',
+      audioDuration: duration,
+      audioUrl: audioUrl
+    });
+
+    setMessages(prev => [...prev, response.data]);
+    setShowVoiceRecorder(false);
+    toast.dismiss();
+    toast.success('Voice message sent!');
+  } catch (error) {
+    console.error('Voice message error:', error);
+    toast.dismiss();
+    toast.error('Failed to send voice message');
+  }
+};
+
+  const getMessageStatusIcon = (message) => {
+  if (message.sender._id !== user._id) return null;
+
+  switch (message.status) {
+    case 'sending':
+      return <Clock className="h-3 w-3 text-gray-400 animate-spin" />;
+    case 'sent':
+      return <Clock className="h-3 w-3 text-gray-400" />;
+    case 'delivered':
+      return <Check className="h-3 w-3 text-gray-500" />;
+    case 'read':
+      return <CheckCheck className="h-3 w-3 text-blue-500" />;
+    case 'failed':
+      return <X className="h-3 w-3 text-red-500" />;
+    default:
+      return null;
+  }
+};
+
+  const getUnreadCount = (projectId) => {
+    const project = unreadCounts.find(p => p.projectId === projectId);
+    return project ? project.unreadCount : 0;
   };
 
   const filteredMessages = messages.filter(message =>
@@ -108,189 +230,213 @@ const MessagesPage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-2 border-black border-t-transparent rounded-full"></div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="h-full flex">
-      {/* Projects Sidebar */}
-      <div className="w-80 border-r-2 border-black bg-gray-50">
-        <div className="p-4 border-b-2 border-black">
-          <h2 className="text-xl font-bold text-black">Projects</h2>
-          <div className="relative mt-4">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search messages..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border-2 border-gray-300 focus:border-black focus:outline-none transition-colors"
-            />
-          </div>
-        </div>
-
-        {/* AI Assistant Section */}
-        <div className="p-4 bg-blue-50 border-b-2 border-black">
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setSelectedProject({ _id: 'ai-chat', title: 'AI Assistant', isAI: true })}
-            className={`p-4 cursor-pointer rounded-lg border-2 transition-all ${
-              selectedProject?.isAI 
-                ? 'bg-blue-600 text-white border-blue-600' 
-                : 'bg-white border-blue-300 hover:border-blue-500 hover:bg-blue-100'
-            }`}
-          >
-            <div className="flex items-center space-x-3">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                selectedProject?.isAI ? 'bg-blue-500' : 'bg-blue-500'
-              }`}>
-                <MessageSquare className="w-6 h-6 text-white" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-bold text-lg">AI Assistant</h3>
-                <p className="text-sm opacity-80">Get help with platform features</p>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="bg-white rounded-lg shadow-sm border h-[80vh] flex">
+          {/* Sidebar */}
+          <div className="w-1/3 border-r flex flex-col">
+            {/* Header */}
+            <div className="p-4 border-b">
+              <h2 className="text-lg font-semibold text-gray-900">Messages</h2>
+              <div className="mt-2 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search messages..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
               </div>
             </div>
-          </motion.div>
-        </div>
 
-        {/* Projects List */}
-        <div className="overflow-y-auto h-full">
-          <div className="p-4">
-            <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wide mb-3">
-              Your Projects ({projects.length})
-            </h3>
-          </div>
-          
-          {projects.map((project) => (
-            <motion.div
-              key={project._id}
-              whileHover={{ backgroundColor: '#f3f4f6' }}
-              onClick={() => setSelectedProject(project)}
-              className={`p-4 cursor-pointer border-b border-gray-200 ${
-                selectedProject?._id === project._id && !selectedProject?.isAI 
-                  ? 'bg-black text-white' 
-                  : 'hover:bg-gray-100'
-              }`}
-            >
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-                  <MessageSquare className="w-5 h-5" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-medium">{project.title}</h3>
-                  <p className="text-sm opacity-75">
-                    {project.members?.length || 0} members
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-
-      {/* Messages Area */}
-      <div className="flex-1 flex flex-col">
-        {selectedProject ? (
-          selectedProject.isAI ? (
-            <AIChat onClose={() => setSelectedProject(null)} />
-          ) : (
-            <>
-              {/* Header */}
-              <div className="p-4 border-b-2 border-black bg-white">
+            {/* Chat List */}
+            <div className="flex-1 overflow-y-auto">
+              {/* AI Chat Option */}
+              <div
+                onClick={() => setSelectedProject({ isAI: true, title: 'AI Assistant' })}
+                className={`p-4 border-b cursor-pointer hover:bg-gray-50 ${
+                  selectedProject?.isAI ? 'bg-blue-50 border-r-2 border-r-blue-500' : ''
+                }`}
+              >
                 <div className="flex items-center justify-between">
-                  <div>
-                    <h1 className="text-2xl font-bold text-black">{selectedProject.title}</h1>
-                    <div className="flex items-center space-x-2 text-sm text-gray-600">
-                      <Users className="w-4 h-4" />
-                      <span>{selectedProject.members?.length || 0} members</span>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+                      <MessageSquare className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">AI Assistant</h3>
+                      <p className="text-sm text-gray-600">Get help with platform features</p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {filteredMessages.length === 0 ? (
-                  <div className="text-center text-gray-500 mt-8">
-                    <MessageSquare className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                    <p>No messages yet. Start the conversation!</p>
-                  </div>
-                ) : (
-                  filteredMessages.map((message) => (
-                    <motion.div
-                      key={message._id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={`flex ${
-                        message.sender._id === user._id ? 'justify-end' : 'justify-start'
-                      }`}
-                    >
-                      <div className={`max-w-xs lg:max-w-md ${
-                        message.sender._id === user._id
-                          ? 'bg-black text-white'
-                          : 'bg-gray-200 text-black'
-                      } rounded-lg p-3`}>
-                        {message.sender._id !== user._id && (
-                          <div className="text-xs font-medium mb-1 opacity-75">
-                            {message.sender.name}
+              {/* Project Chats */}
+              {projects.map((project) => {
+                const unreadCount = getUnreadCount(project._id);
+                return (
+                  <div
+                    key={project._id}
+                    onClick={() => setSelectedProject(project)}
+                    className={`p-4 border-b cursor-pointer hover:bg-gray-50 ${
+                      selectedProject?._id === project._id ? 'bg-blue-50 border-r-2 border-r-blue-500' : ''
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+                          <span className="text-sm font-medium text-gray-700">
+                            {project.title.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <h3 className="font-medium text-gray-900">{project.title}</h3>
+                            {unreadCount > 0 && (
+                              <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
+                                {unreadCount}
+                              </span>
+                            )}
                           </div>
-                        )}
-                        <p className="text-sm">{message.content}</p>
-                        <div className={`text-xs mt-1 flex items-center space-x-1 ${
-                          message.sender._id === user._id ? 'text-gray-300' : 'text-gray-500'
-                        }`}>
-                          {message.sender._id === user._id ? (
-                            message.status === 'sent' ? <Check className="w-3 h-3" /> :
-                            message.status === 'failed' ? <X className="w-3 h-3 text-red-400" /> :
-                            <Clock className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <Clock className="w-3 h-3" />
-                          )}
-                          <span>{new Date(message.createdAt).toLocaleTimeString()}</span>
+                          <div className="flex items-center text-sm text-gray-600">
+                            <Users className="h-3 w-3 mr-1" />
+                            {project.members?.length || 0} members
+                          </div>
                         </div>
                       </div>
-                    </motion.div>
-                  ))
-                )}
-              </div>
-
-              {/* Message Input - Only shows for project chats, not AI chat */}
-              <form onSubmit={sendMessage} className="p-4 border-t-2 border-black bg-white">
-                <div className="flex space-x-2">
-                  <input
-                    type="text"
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Type your message..."
-                    className="flex-1 px-3 py-2 border-2 border-gray-300 focus:border-black focus:outline-none transition-colors"
-                  />
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    type="submit"
-                    disabled={!newMessage.trim()}
-                    className="px-4 py-2 bg-black text-white hover:bg-gray-800 transition-colors disabled:opacity-50"
-                  >
-                    <Send className="w-5 h-5" />
-                  </motion.button>
-                </div>
-              </form>
-            </>
-          )
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <MessageSquare className="w-24 h-24 mx-auto mb-4 text-gray-400" />
-              <h2 className="text-xl font-bold text-black mb-2">Select a Project</h2>
-              <p className="text-gray-600">Choose a project to start messaging</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-        )}
+
+          {/* Chat Area */}
+          <div className="flex-1 flex flex-col">
+            {selectedProject ? (
+              <>
+                {/* Chat Header */}
+                <div className="p-4 border-b bg-white">
+                  <h3 className="font-semibold text-gray-900">{selectedProject.title}</h3>
+                </div>
+
+                {selectedProject.isAI ? (
+                  <AIChat />
+                ) : (
+                  <>
+                    {/* Messages */}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                      {filteredMessages.length === 0 ? (
+                        <div className="text-center text-gray-500 py-8">
+                          <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                          <p>No messages yet. Start the conversation!</p>
+                        </div>
+                      ) : (
+                        filteredMessages.map((message) => (
+                          <div
+                            key={message._id}
+                            className={`flex ${
+                              message.sender._id === user._id ? 'justify-end' : 'justify-start'
+                            }`}
+                          >
+                            <div
+                              className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                                message.sender._id === user._id
+                                  ? 'bg-black text-white'
+                                  : 'bg-gray-200 text-gray-900'
+                              }`}
+                            >
+                              {message.sender._id !== user._id && (
+                                <p className="text-xs font-medium mb-1 opacity-75">
+                                  {message.sender.name}
+                                </p>
+                              )}
+                              
+                              {message.type === 'voice' ? (
+                                <VoicePlayer 
+                                  audioUrl={message.audioUrl}
+                                  duration={message.audioDuration}
+                                />
+                              ) : (
+                                <p className="text-sm">{message.content}</p>
+                              )}
+                              
+                              <div className="flex items-center justify-between mt-2">
+                                <span className="text-xs opacity-75">
+                                  {new Date(message.createdAt).toLocaleTimeString([], {
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </span>
+                                {getMessageStatusIcon(message)}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Voice Recorder */}
+                    {showVoiceRecorder && (
+                      <div className="p-4 border-t">
+                        <VoiceRecorder
+                          onSendVoice={sendVoiceMessage}
+                          onCancel={() => setShowVoiceRecorder(false)}
+                        />
+                      </div>
+                    )}
+
+                    {/* Message Input */}
+                    {!showVoiceRecorder && (
+                      <div className="p-4 border-t bg-white">
+                        <form onSubmit={sendMessage} className="flex space-x-2">
+                          <input
+                            type="text"
+                            value={newMessage}
+                            onChange={(e) => setNewMessage(e.target.value)}
+                            placeholder="Type a message..."
+                            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                          
+                          <button
+                            type="button"
+                            onClick={() => setShowVoiceRecorder(true)}
+                            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+                          >
+                            <Mic className="h-5 w-5" />
+                          </button>
+                          
+                          <button
+                            type="submit"
+                            disabled={!newMessage.trim()}
+                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Send className="h-4 w-4" />
+                          </button>
+                        </form>
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center text-gray-500">
+                  <MessageSquare className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg">Choose a project to start messaging</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
