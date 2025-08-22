@@ -3,8 +3,10 @@ import { motion } from 'framer-motion';
 import { X, Plus } from 'lucide-react';
 import { projectAPI } from '../../services/api';
 import toast from 'react-hot-toast';
+import { useCurrentProject } from '../../context/CurrentProjectContext';
 
 const CreateProjectModal = ({ onClose, onSuccess }) => {
+  const { fetchProjects } = useCurrentProject();
   const [formData, setFormData] = useState({
     title: '',
     description: ''
@@ -20,6 +22,7 @@ const CreateProjectModal = ({ onClose, onSuccess }) => {
       const response = await projectAPI.createProject(formData);
       toast.success('Project created successfully!');
       onSuccess(response.data);
+      await fetchProjects();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to create project');
     } finally {

@@ -11,8 +11,9 @@ import Chat from '../chat/Chat';
 import EditTaskModal from '../tasks/EditTaskModal';
 import { useAuth } from '../../context/AuthContext';
 
-const ProjectDetail = () => {
-  const { id } = useParams();
+const ProjectDetail = ({ id: propId }) => {
+  const params = useParams();
+  const id = propId || params.id;
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -29,11 +29,24 @@ export const AuthProvider = ({ children }) => {
     loading: true
   });
 
-  useEffect(() => {
+   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (token) {
-      // We can add token verification here if needed
-      dispatch({ type: 'SET_LOADING', payload: false });
+    const userData = localStorage.getItem('user');
+    
+    if (token && userData) {
+      // Restore user from localStorage
+      try {
+        const user = JSON.parse(userData);
+        dispatch({
+          type: 'LOGIN_SUCCESS',
+          payload: { user, token }
+        });
+      } catch (error) {
+        // If user data is corrupted, clear everything
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        dispatch({ type: 'SET_LOADING', payload: false });
+      }
     } else {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
@@ -44,8 +57,15 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: 'SET_LOADING', payload: true });
       const response = await authAPI.login(email, password);
       const userData = response.data;
-      
+
       localStorage.setItem('token', userData.token);
+      localStorage.setItem('user', JSON.stringify({
+        _id: userData._id,
+        name: userData.name,
+        email: userData.email,
+        role: userData.role
+      }));
+      
       dispatch({
         type: 'LOGIN_SUCCESS',
         payload: { 
@@ -74,6 +94,13 @@ export const AuthProvider = ({ children }) => {
       const userData = response.data;
       
       localStorage.setItem('token', userData.token);
+      localStorage.setItem('user', JSON.stringify({
+        _id: userData._id,
+        name: userData.name,
+        email: userData.email,
+        role: userData.role
+      }));
+
       dispatch({
         type: 'LOGIN_SUCCESS',
         payload: { 
@@ -97,11 +124,22 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     dispatch({ type: 'LOGOUT' });
     toast.success('Logged out successfully');
   };
 
   return (
+//     <AuthContext.Provider value={{
+//   user: state.user,
+//   token: state.token,
+//   loading: state.loading,
+//   login,
+//   register,
+//   logout
+// }}>
+//   {children}
+// </AuthContext.Provider>
     <AuthContext.Provider value={{ ...state, login, register, logout }}>
       {children}
     </AuthContext.Provider>

@@ -42,6 +42,7 @@ app.get('/health', (req, res) => res.json({
   timestamp: new Date().toISOString() 
 }));
 
+
 app.use(errorHandler);
 
 module.exports = app;

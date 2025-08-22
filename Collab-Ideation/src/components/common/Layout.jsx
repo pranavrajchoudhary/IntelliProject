@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Menu, 
@@ -10,25 +10,42 @@ import {
   BarChart3, 
   Settings, 
   LogOut,
-  User
+  User,
+  Trello,
+  ChevronDown, Circle
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useCurrentProject } from '../../context/CurrentProjectContext';
+import api from '../../services/api';
 
 const Layout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { currentProject, setCurrentProject, projects, fetchProjects } = useCurrentProject();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const navigation = [
     { name: 'Dashboard', href: '/', icon: Home },
     { name: 'Projects', href: '/projects', icon: FolderOpen },
+    { name: 'Kanban Board', href: '/kanban', icon: Trello },
     { name: 'Messages', href: '/messages', icon: MessageSquare },
     { name: 'Documents', href: '/documents', icon: FileText },
     { name: 'Analytics', href: '/analytics', icon: BarChart3 },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const res = await api.get('/projects');
+        setProjects(res.data);
+      } catch (err) {}
+    };
+    fetchProjects();
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -70,6 +87,62 @@ const Layout = ({ children }) => {
           >
             <Menu className="w-6 h-6" />
           </button>
+          <div className="flex items-center space-x-4">
+            {/* Current Project Dropdown */}
+            <div className="relative">
+              <button
+                className="flex items-center space-x-2 px-3 py-1 border border-black rounded-lg bg-white hover:bg-gray-100 transition-colors"
+                onClick={() => setDropdownOpen((open) => !open)}
+              >
+                <span className="font-medium">
+                  {currentProject ? currentProject.title : "Current Working Project"}
+                </span>
+                <ChevronDown className="w-4 h-4" />
+                <Circle
+                  className={`w-3 h-3 ml-2 ${
+                    currentProject
+                      ? "text-green-500 animate-pulse"
+                      : "text-red-500"
+                  }`}
+                  style={{ minWidth: '12px' }}
+                />
+              </button>
+              {dropdownOpen && (
+                <div className="absolute left-0 mt-2 w-56 bg-white border border-black rounded-lg shadow-lg z-50">
+                  <ul>
+                    {projects.map((proj) => (
+                      <li key={proj._id}>
+                        <button
+                          className={`w-full text-left px-4 py-2 hover:bg-gray-100 ${
+                            currentProject && currentProject._id === proj._id
+                              ? "bg-black text-white"
+                              : "text-black"
+                          }`}
+                          onClick={() => {
+                            setCurrentProject(proj);
+                            setDropdownOpen(false);
+                          }}
+                        >
+                          {proj.title || "Unnamed Project"}
+                        </button>
+                      </li>
+                    ))}
+                    <li>
+                      <button
+                        className="w-full text-left px-4 py-2 text-red-500 hover:bg-gray-100"
+                        onClick={() => {
+                          setCurrentProject(null);
+                          setDropdownOpen(false);
+                        }}
+                      >
+                        Clear Selection
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              )}
+            </div>
+            </div>
           
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
