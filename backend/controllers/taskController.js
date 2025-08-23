@@ -5,8 +5,8 @@ const asyncHandler = require('../utils/asyncHandler');
 
 // Create task - Any project member
 const createTask = asyncHandler(async (req, res) => {
-  const { title, description, projectId, assignee, dueDate, status } = req.body;
-  
+  const { title, description, projectId, assignees, dueDate, status } = req.body;
+
   // Verify project exists and user has access
   const project = await Project.findById(projectId);
   if (!project) {
@@ -15,23 +15,31 @@ const createTask = asyncHandler(async (req, res) => {
 
   // Check if user can create tasks in this project
   const user = req.user;
-  const canCreate = user.role === 'admin' || 
-                   project.owner.toString() === user._id.toString() ||
-                   project.members.includes(user._id);
+  const canCreate = user.role === 'admin' ||
+    project.owner.toString() === user._id.toString() ||
+    project.members.includes(user._id);
 
   if (!canCreate) {
     return res.status(403).json({ message: 'You cannot create tasks in this project' });
   }
 
-  // If assignee is specified, verify they're a project member
-  if (assignee) {
-    const assigneeUser = await User.findById(assignee);
-    if (!assigneeUser) {
-      return res.status(404).json({ message: 'Assignee not found' });
-    }
-    
-    if (!project.members.includes(assignee)) {
-      return res.status(400).json({ message: 'Assignee must be a project member' });
+  // Validate assignees if provided
+  let validatedAssignees = [];
+  if (assignees && assignees.length > 0) {
+    for (const assignee of assignees) {
+      const assigneeUser = await User.findById(assignee.user);
+      if (!assigneeUser) {
+        return res.status(404).json({ message: `Assignee ${assignee.user} not found` });
+      }
+      
+      if (!project.members.includes(assignee.user)) {
+        return res.status(400).json({ message: 'All assignees must be project members' });
+      }
+      
+      validatedAssignees.push({
+        user: assignee.user,
+        role: assignee.role
+      });
     }
   }
 
@@ -39,23 +47,24 @@ const createTask = asyncHandler(async (req, res) => {
     title,
     description,
     project: projectId,
-    assignee: assignee || null,
+    assignees: validatedAssignees,
     dueDate: dueDate || null,
     status: status || 'todo',
     createdBy: user._id
   });
 
-  await task.populate('assignee', 'name email');
+  await task.populate('assignees.user', 'name email');
+  await task.populate('createdBy', 'name email');
   res.status(201).json(task);
 });
 
 // Get project tasks - Members can view tasks in their projects
 const getProjectTasks = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
-  
+
   // Authorization already handled by middleware
   const tasks = await Task.find({ project: projectId })
-    .populate('assignee', 'name email')
+    .populate('assignees.user', 'name email')
     .populate('createdBy', 'name email')
     .sort({ position: 1, createdAt: -1 });
 
@@ -65,7 +74,7 @@ const getProjectTasks = asyncHandler(async (req, res) => {
 // Get single task
 const getTask = asyncHandler(async (req, res) => {
   const task = await Task.findById(req.params.id)
-    .populate('assignee', 'name email')
+    .populate('assignees.user', 'name email')
     .populate('createdBy', 'name email')
     .populate('project', 'title');
 
@@ -78,8 +87,8 @@ const getTask = asyncHandler(async (req, res) => {
   const user = req.user;
   
   const canView = user.role === 'admin' ||
-                 project.owner.toString() === user._id.toString() ||
-                 project.members.includes(user._id);
+    project.owner.toString() === user._id.toString() ||
+    project.members.includes(user._id);
 
   if (!canView) {
     return res.status(403).json({ message: 'Access denied' });
@@ -88,11 +97,11 @@ const getTask = asyncHandler(async (req, res) => {
   res.json(task);
 });
 
-// Update task - Only admins and project owners
+// Update task - Enhanced permission check
 const updateTask = asyncHandler(async (req, res) => {
-  const { title, description, status, assignee, dueDate, position } = req.body;
+  const { title, description, status, assignees, dueDate, position } = req.body;
   
-  const task = await Task.findById(req.params.id);
+  const task = await Task.findById(req.params.id).populate('assignees.user');
   if (!task) {
     return res.status(404).json({ message: 'Task not found' });
   }
@@ -100,27 +109,47 @@ const updateTask = asyncHandler(async (req, res) => {
   const project = await Project.findById(task.project);
   const user = req.user;
 
-  // Check permissions
-  const canUpdate = user.role === 'admin' || 
-                   project.owner.toString() === user._id.toString();
+  // Enhanced permission check
+  const isAdmin = user.role === 'admin';
+  const isProjectManager = project.owner.toString() === user._id.toString();
+  const isAssignee = task.assignees.some(assignee => 
+    assignee.user._id.toString() === user._id.toString()
+  );
 
-  if (!canUpdate) {
-    return res.status(403).json({ 
-      message: 'Only admins and project managers can update tasks' 
+  // For status changes, allow admin, PM, or assignee
+  if (status && status !== task.status) {
+    if (!isAdmin && !isProjectManager && !isAssignee) {
+      return res.status(403).json({
+        message: 'Only admins, project managers, or assignees can change task status'
+      });
+    }
+  }
+
+  // For other changes (title, description, assignees), only admin or PM
+  if ((title || description || assignees) && !isAdmin && !isProjectManager) {
+    return res.status(403).json({
+      message: 'Only admins and project managers can update task details'
     });
   }
 
-  // If updating assignee, verify they're a project member
-  if (assignee && assignee !== task.assignee?.toString()) {
-    if (assignee !== null) {
-      const assigneeUser = await User.findById(assignee);
+  // Validate new assignees if provided
+  let validatedAssignees = task.assignees;
+  if (assignees) {
+    validatedAssignees = [];
+    for (const assignee of assignees) {
+      const assigneeUser = await User.findById(assignee.user);
       if (!assigneeUser) {
-        return res.status(404).json({ message: 'Assignee not found' });
+        return res.status(404).json({ message: `Assignee ${assignee.user} not found` });
       }
       
-      if (!project.members.includes(assignee)) {
-        return res.status(400).json({ message: 'Assignee must be a project member' });
+      if (!project.members.includes(assignee.user)) {
+        return res.status(400).json({ message: 'All assignees must be project members' });
       }
+      
+      validatedAssignees.push({
+        user: assignee.user,
+        role: assignee.role
+      });
     }
   }
 
@@ -131,12 +160,12 @@ const updateTask = asyncHandler(async (req, res) => {
       ...(title && { title }),
       ...(description !== undefined && { description }),
       ...(status && { status }),
-      ...(assignee !== undefined && { assignee: assignee || null }),
+      ...(assignees && { assignees: validatedAssignees }),
       ...(dueDate !== undefined && { dueDate: dueDate || null }),
       ...(position !== undefined && { position })
     },
     { new: true }
-  ).populate('assignee', 'name email')
+  ).populate('assignees.user', 'name email')
    .populate('createdBy', 'name email');
 
   res.json(updatedTask);
@@ -154,11 +183,11 @@ const deleteTask = asyncHandler(async (req, res) => {
 
   // Check permissions
   const canDelete = user.role === 'admin' || 
-                   project.owner.toString() === user._id.toString();
+    project.owner.toString() === user._id.toString();
 
   if (!canDelete) {
-    return res.status(403).json({ 
-      message: 'Only admins and project managers can delete tasks' 
+    return res.status(403).json({
+      message: 'Only admins and project managers can delete tasks'
     });
   }
 

@@ -14,6 +14,7 @@ const analyticsRoutes = require('./routes/analytics');
 const settingsRoutes = require('./routes/settings');
 const aiRoutes = require('./routes/ai');
 const aiChatRoutes = require('./routes/aiChat');
+const uploadRoutes = require('./routes/upload');
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use('/analytics', analyticsRoutes);
 app.use('/settings', settingsRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/ai-chat', aiChatRoutes);
+app.use('/upload', uploadRoutes);
 
 app.get('/', (req, res) => res.json({ status: 'ok' }));
 
@@ -41,6 +43,7 @@ app.get('/health', (req, res) => res.json({
   message: 'Backend is awake and ready!',
   timestamp: new Date().toISOString() 
 }));
+
 
 app.use(errorHandler);
 

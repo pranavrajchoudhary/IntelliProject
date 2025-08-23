@@ -42,3 +42,8 @@ backend/.env
 
 .env
 gemini-test.js
+
+uploads/
+*.wav
+*.mp3
+.env

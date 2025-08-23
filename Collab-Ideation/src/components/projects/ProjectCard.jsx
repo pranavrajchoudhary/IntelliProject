@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Users, MoreVertical } from 'lucide-react';
+import { Calendar, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const ProjectCard = ({ project }) => {
@@ -29,9 +29,6 @@ const ProjectCard = ({ project }) => {
             {project.description || 'No description available'}
           </p>
         </div>
-        <button className="p-1 hover:bg-gray-100 rounded">
-          <MoreVertical className="w-5 h-5 text-gray-400" />
-        </button>
       </div>
 
       <div className="flex items-center justify-between text-sm text-gray-500">

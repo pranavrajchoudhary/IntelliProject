@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Lightbulb, Users, CheckCircle, Clock, FolderOpen, TrendingUp, Calendar } from 'lucide-react';
-import { projectAPI, taskAPI, userAPI } from '../../services/api';
+import { Plus, Lightbulb, Users, CheckCircle, Clock, FolderOpen, TrendingUp, Calendar, TrendingDown, Minus } from 'lucide-react';
+import { projectAPI, taskAPI, userAPI, analyticsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import ProjectCard from '../projects/ProjectCard';
 import CreateProjectModal from '../projects/CreateProjectModal';
@@ -9,69 +9,60 @@ import AIIdeaGenerator from '../ai/AIIdeaGenerator';
 
 const Dashboard = () => {
   const [projects, setProjects] = useState([]);
-  const [stats, setStats] = useState({
-    totalProjects: 0,
-    totalTasks: 0,
-    completedTasks: 0,
-    teamMembers: 0
-  });
+  const [stats, setStats] = useState(null);
+  const [trends, setTrends] = useState(null);
   const [recentActivity, setRecentActivity] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAIGenerator, setShowAIGenerator] = useState(false);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const [refreshingTrends, setRefreshingTrends] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
 
+  const handleRefreshTrends = async () => {
+  if (refreshingTrends) return;
+  
+  setRefreshingTrends(true);
+  try {
+    // Check if today's snapshot exists
+    const snapshotInfo = await analyticsAPI.getLatestSnapshot();
+    
+    if (snapshotInfo.data.isToday) {
+      // Today's snapshot exists, just refresh dashboard data
+      await fetchDashboardData();
+      console.log('Dashboard refreshed - using existing snapshot');
+      alert('Dashboard refreshed successfully!');
+    } else {
+      // No snapshot for today, create new one
+      const result = await analyticsAPI.saveStatsSnapshot(false);
+      console.log('New snapshot created:', result);
+      await fetchDashboardData();
+      alert('Trends snapshot created and dashboard refreshed!');
+    }
+  } catch (error) {
+    console.error('Failed to refresh trends:', error);
+    alert('Failed to refresh trends');
+  } finally {
+    setRefreshingTrends(false);
+  }
+};
+
   const fetchDashboardData = async () => {
+    setLoading(true);
     try {
-      const [projectsRes, usersRes] = await Promise.all([
+      // Use analytics API for stats with trends
+      const [projectsRes, analyticsRes] = await Promise.all([
         projectAPI.getProjects(),
-        userAPI.getUsers()
+        analyticsAPI.getDashboardStats()
       ]);
 
-      const projects = projectsRes.data;
-      const users = usersRes.data;
-
-      //Fetch task counts for each project
-      const projectsWithStats = await Promise.all(
-        projects.map(async (project) => {
-          try {
-            const tasksRes = await taskAPI.getProjectTasks(project._id);
-            const tasks = tasksRes.data;
-            return {
-              ...project,
-              taskCount: tasks.length,
-              completedTasks: tasks.filter(t => t.status === 'done').length,
-              tasks: tasks
-            };
-          } catch (error) {
-            return { ...project, taskCount: 0, completedTasks: 0, tasks: [] };
-          }
-        })
-      );
-
-      //Calculate stats
-      const totalTasks = projectsWithStats.reduce((sum, p) => sum + p.taskCount, 0);
-      const completedTasks = projectsWithStats.reduce((sum, p) => sum + p.completedTasks, 0);
-
-      setProjects(projectsWithStats);
-      setStats({
-        totalProjects: projects.length,
-        totalTasks,
-        completedTasks,
-        teamMembers: users.length
-      });
-
-      //Generate recent activity
-      const allTasks = projectsWithStats.flatMap(p => p.tasks.map(t => ({ ...t, projectTitle: p.title })));
-      const recentTasks = allTasks
-        .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
-        .slice(0, 5);
-      
-      setRecentActivity(recentTasks);
+      setProjects(projectsRes.data);
+      setStats(analyticsRes.data.stats);
+      setTrends(analyticsRes.data.trends);
+      setRecentActivity(analyticsRes.data.recentActivities || []);
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
     } finally {
@@ -79,36 +70,47 @@ const Dashboard = () => {
     }
   };
 
-  const dashboardStats = [
-    { 
-      name: 'Active Projects', 
-      value: stats.totalProjects, 
-      icon: FolderOpen, 
+  // Get trend icon and color
+  const getTrendIcon = (change, percentage) => {
+    if (change > 0) return { icon: TrendingUp, color: 'text-green-500', bg: 'bg-green-50' };
+    if (change < 0) return { icon: TrendingDown, color: 'text-red-500', bg: 'bg-red-50' };
+    return { icon: Minus, color: 'text-gray-400', bg: 'bg-gray-50' };
+  };
+
+  const dashboardStats = stats && trends ? [
+    {
+      name: 'Active Projects',
+      value: stats.totalProjects,
+      icon: FolderOpen,
       color: 'bg-blue-500',
-      change: '+12%'
+      change: trends.projectsChange,
+      percentage: trends.projectsPercentage
     },
-    { 
-      name: 'Team Members', 
-      value: stats.teamMembers, 
-      icon: Users, 
+    {
+      name: 'Team Members',
+      value: stats.teamMembers,
+      icon: Users,
       color: 'bg-green-500',
-      change: '+3'
+      change: trends.membersChange,
+      percentage: trends.membersPercentage
     },
-    { 
-      name: 'Completed Tasks', 
-      value: stats.completedTasks, 
-      icon: CheckCircle, 
+    {
+      name: 'Completed Tasks',
+      value: stats.completedTasks,
+      icon: CheckCircle,
       color: 'bg-purple-500',
-      change: '+24%'
+      change: trends.completedChange,
+      percentage: trends.completedPercentage
     },
-    { 
-      name: 'Pending Tasks', 
-      value: stats.totalTasks - stats.completedTasks, 
-      icon: Clock, 
+    {
+      name: 'Total Tasks',
+      value: stats.totalTasks,
+      icon: Clock,
       color: 'bg-yellow-500',
-      change: stats.totalTasks > 0 ? `${Math.round((stats.completedTasks / stats.totalTasks) * 100)}%` : '0%'
-    },
-  ];
+      change: trends.tasksChange,
+      percentage: trends.tasksPercentage
+    }
+  ] : [];
 
   if (loading) {
     return (
@@ -132,6 +134,28 @@ const Dashboard = () => {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
+            onClick={handleRefreshTrends}
+            disabled={refreshingTrends}
+            className={`flex items-center space-x-2 px-4 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors ${
+              refreshingTrends ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            {refreshingTrends ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Refreshing...
+              </>
+            ) : (
+              <>
+                <TrendingUp className="h-4 w-4 mr-2" />
+                Refresh Trends
+              </>
+            )}
+          </motion.button>
+
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => setShowAIGenerator(true)}
             className="flex items-center space-x-2 px-4 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors"
           >
@@ -150,34 +174,46 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {dashboardStats.map((stat, index) => (
-          <motion.div
-            key={stat.name}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="bg-white border-2 border-black p-6 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">{stat.name}</p>
-                <p className="text-2xl font-bold text-black mt-1">{stat.value}</p>
-                {stat.change && (
-                  <div className="flex items-center mt-2">
-                    <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-                    <span className="text-sm text-green-600">{stat.change}</span>
+       {/* Stats with Dynamic Trends */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {dashboardStats.map((stat, index) => {
+              const trend = getTrendIcon(stat.change, stat.percentage);
+              const IconComponent = stat.icon;
+              const TrendIcon = trend.icon;
+              
+              return (
+                <motion.div
+                  key={stat.name}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="bg-white p-6 rounded-lg shadow-sm border border-gray-200"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">{stat.name}</p>
+                      <p className="text-3xl font-bold text-gray-900 mt-1">{stat.value}</p>
+                      
+                      {/* Trend Indicator */}
+                      <div className="flex items-center mt-2">
+                        <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium ${trend.bg} ${trend.color}`}>
+                          <TrendIcon className="h-3 w-3 mr-1" />
+                          {Math.abs(stat.percentage)}%
+                        </div>
+                        <span className="text-xs text-gray-500 ml-2">
+                          {stat.change > 0 ? '+' : ''}{stat.change} from last period
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className={`${stat.color} p-3 rounded-lg`}>
+                      <IconComponent className="h-6 w-6 text-white" />
+                    </div>
                   </div>
-                )}
-              </div>
-              <div className={`w-12 h-12 ${stat.color} rounded-full flex items-center justify-center`}>
-                <stat.icon className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
+                </motion.div>
+              );
+            })}
+          </div>
 
       {/* Quick Actions */}
       <div className="bg-white border-2 border-black p-6">
@@ -245,9 +281,11 @@ const Dashboard = () => {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-black">Recent Projects</h2>
             {projects.length > 4 && (
+              <a href='/projects'>
               <button className="text-black hover:underline font-medium">
                 View all projects
               </button>
+              </a>
             )}
           </div>
           

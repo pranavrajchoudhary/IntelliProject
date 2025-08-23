@@ -11,8 +11,9 @@ import Chat from '../chat/Chat';
 import EditTaskModal from '../tasks/EditTaskModal';
 import { useAuth } from '../../context/AuthContext';
 
-const ProjectDetail = () => {
-  const { id } = useParams();
+const ProjectDetail = ({ id: propId }) => {
+  const params = useParams();
+  const id = propId || params.id;
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,6 +46,19 @@ const ProjectDetail = () => {
       console.error('Failed to fetch project:', error);
     }
   };
+
+  const canDragTask = (task) => {
+  const isAdmin = user.role === 'admin';
+  const isProjectManager = project?.owner === user._id;
+  // Support both new multi-assignee and legacy single-assignee
+  const isAssignee = 
+    Array.isArray(task.assignees) && task.assignees.length
+      ? task.assignees.some(a => a.user?._id === user._id)
+      : (task.assignee && task.assignee._id === user._id);
+
+  return isAdmin || isProjectManager || isAssignee;
+};
+
 
   const fetchTasks = async () => {
     try {
@@ -79,7 +93,11 @@ const handleTaskUpdated = (updatedTask) => {
 
   const handleDragEnd = async (result) => {
     const { destination, source, draggableId } = result;
-
+    const draggedTask = tasks.find(task => task._id === draggableId);
+    if (!canDragTask(draggedTask)) {
+    toast.error('Only assigned users or project managers can change task status');
+    return;
+  }
     // If no destination, return
     if (!destination) return;
 
@@ -222,6 +240,7 @@ const handleTaskUpdated = (updatedTask) => {
                           <Draggable
                             key={task._id}
                             draggableId={task._id}
+                            isDragDisabled={!canDragTask(task)}
                             index={index}
                           >
                             {(provided, snapshot) => (
@@ -269,6 +288,7 @@ const handleTaskUpdated = (updatedTask) => {
       {showCreateTask && (
         <CreateTaskModal
           projectId={id}
+          projectMembers={project?.members || []}
           initialStatus={activeColumn}
           onClose={() => {
             setShowCreateTask(false);

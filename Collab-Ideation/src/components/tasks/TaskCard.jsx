@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, User, Clock, Edit, Trash2, MoreVertical } from 'lucide-react';
+import { Calendar, User, Clock, Edit, Trash2, MoreVertical, Shield } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { taskAPI } from '../../services/api';
 import toast from 'react-hot-toast';
@@ -19,10 +19,18 @@ const TaskCard = ({ task, project, onEdit, onDelete }) => {
     }
   };
 
-  const canEdit = user.role === 'admin' || 
-                 (user.role === 'pm' && project?.owner === user._id);
+  // Enhanced permission check
+  const isAdmin = user.role === 'admin';
+  const isProjectManager = project?.owner === user._id;
+  const isAssignee = task.assignees?.some(assignee => 
+    assignee.user._id === user._id
+  );
+  
+  const canEdit = isAdmin || isProjectManager;
+  const canChangeStatus = isAdmin || isProjectManager || isAssignee;
 
-  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date();
+  // Check if task is overdue
+  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done';
 
   const handleDelete = async () => {
     if (!window.confirm('Are you sure you want to delete this task?')) return;
@@ -39,13 +47,24 @@ const TaskCard = ({ task, project, onEdit, onDelete }) => {
     }
   };
 
+  // Get card styling based on overdue status
+  const getCardStyling = () => {
+    let baseClasses = `bg-white p-4 rounded-lg shadow-sm border-l-4 ${getStatusColor()} hover:shadow-md transition-shadow relative`;
+    
+    if (isOverdue) {
+      baseClasses += ' border-2 border-red-200 bg-red-50';
+    }
+    
+    return baseClasses;
+  };
+
   return (
     <motion.div
       layout
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className={`bg-white p-4 rounded-lg shadow-sm border-l-4 ${getStatusColor()} hover:shadow-md transition-shadow relative`}
+      className={getCardStyling()}
     >
       {canEdit && (
         <div className="absolute top-2 right-2">
@@ -84,32 +103,66 @@ const TaskCard = ({ task, project, onEdit, onDelete }) => {
         </div>
       )}
 
-      <h4 className="font-medium text-gray-900 mb-2 pr-8">{task.title}</h4>
+      {/* Overdue badge */}
+      {isOverdue && (
+        <div className="absolute -top-2 -right-2">
+          <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full font-medium shadow-md">
+            OVERDUE
+          </span>
+        </div>
+      )}
+
+      <h4 className={`font-medium mb-2 pr-8 ${isOverdue ? 'text-red-800' : 'text-gray-900'}`}>
+        {task.title}
+      </h4>
       
       {task.description && (
-        <p className="text-sm text-gray-600 mb-3">{task.description}</p>
+        <p className={`text-sm mb-3 ${isOverdue ? 'text-red-700' : 'text-gray-600'}`}>
+          {task.description}
+        </p>
       )}
       
       <div className="space-y-2">
-        {task.assignee && (
-          <div className="flex items-center text-sm text-gray-600">
-            <User className="h-4 w-4 mr-2" />
-            {task.assignee.name}
+        {/* Assignees */}
+        {task.assignees && task.assignees.length > 0 && (
+          <div className="space-y-1">
+            {task.assignees.map((assignee, index) => (
+              <div key={index} className={`flex items-center text-sm ${isOverdue ? 'text-red-700' : 'text-gray-600'}`}>
+                <User className="h-4 w-4 mr-2" />
+                <span className="font-medium">{assignee.user.name}</span>
+                <span className="mx-2">•</span>
+                <div className="flex items-center">
+                  <Shield className="h-3 w-3 mr-1" />
+                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                    {assignee.role}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         )}
         
+        {/* Due Date */}
         {task.dueDate && (
-          <div className={`flex items-center text-sm ${isOverdue ? 'text-red-600' : 'text-gray-600'}`}>
+          <div className={`flex items-center text-sm ${isOverdue ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
             <Calendar className="h-4 w-4 mr-2" />
             Due {new Date(task.dueDate).toLocaleDateString()}
-            {isOverdue && <span className="ml-2 text-xs bg-red-100 text-red-600 px-2 py-1 rounded">OVERDUE</span>}
           </div>
         )}
         
-        <div className="flex items-center text-xs text-gray-500">
+        {/* Created Date */}
+        <div className={`flex items-center text-xs ${isOverdue ? 'text-red-600' : 'text-gray-500'}`}>
           <Clock className="h-3 w-3 mr-1" />
           Created {new Date(task.createdAt).toLocaleDateString()}
         </div>
+
+        {/* Permission indicator for current user */}
+        {canChangeStatus && !canEdit && (
+          <div className="flex items-center text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full w-fit">
+            <Shield className="h-3 w-3 mr-1" />
+            Can modify status
+          </div>
+        )}
       </div>
     </motion.div>
   );

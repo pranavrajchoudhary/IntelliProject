@@ -14,7 +14,9 @@ import MessagesPage from './components/messages/MessagesPage';
 import DocumentsPage from './components/documents/DocumentsPage';
 import AnalyticsPage from './components/analytics/AnalyticsPage';
 import SettingsPage from './components/settings/SettingsPage';
-import BackendLoader from './components/BackendLoader'; 
+import BackendLoader from './components/BackendLoader';
+import KanbanBoard from './components/KanbanBoard';
+import { CurrentProjectProvider } from './context/CurrentProjectContext';
 
 function App() {
   const [backendReady, setBackendReady] = useState(false);
@@ -30,6 +32,7 @@ function App() {
   return (
     <AuthProvider>
       <SocketProvider>
+        <CurrentProjectProvider>
         <Router>
           <div className="min-h-screen bg-white text-black">
             <Routes>
@@ -61,6 +64,16 @@ function App() {
                     <AuthGuard>
                       <Layout>
                         <ProjectsPage />
+                      </Layout>
+                    </AuthGuard>
+                  }
+                />
+                <Route
+                  path="/kanban"
+                  element={
+                    <AuthGuard>
+                      <Layout>
+                        <KanbanBoard />
                       </Layout>
                     </AuthGuard>
                   }
@@ -111,6 +124,7 @@ function App() {
             />
           </div>
         </Router>
+        </CurrentProjectProvider>
       </SocketProvider>
     </AuthProvider>
   );

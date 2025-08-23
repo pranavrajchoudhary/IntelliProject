@@ -10,6 +10,7 @@ const AnalyticsPage = () => {
   const [selectedProject, setSelectedProject] = useState('dashboard');
   const [projectAnalytics, setProjectAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshingTrends, setRefreshingTrends] = useState(false);
 
   useEffect(() => {
     fetchProjects();
@@ -19,6 +20,34 @@ const AnalyticsPage = () => {
       fetchProjectAnalytics(selectedProject);
     }
   }, [selectedProject]);
+
+  const handleRefreshTrends = async () => {
+    if (refreshingTrends) return;
+    
+    setRefreshingTrends(true);
+    try {
+      // Check if today's snapshot exists
+      const snapshotInfo = await analyticsAPI.getLatestSnapshot();
+      
+      if (snapshotInfo.data.isToday) {
+        // Today's snapshot exists, just refresh dashboard data
+        await fetchDashboardData();
+        console.log('Dashboard refreshed - using existing snapshot');
+        alert('Dashboard refreshed successfully!');
+      } else {
+        // No snapshot for today, create new one
+        const result = await analyticsAPI.saveStatsSnapshot(false);
+        console.log('New snapshot created:', result);
+        await fetchDashboardData();
+        alert('Trends snapshot created and dashboard refreshed!');
+      }
+    } catch (error) {
+      console.error('Failed to refresh trends:', error);
+      alert('Failed to refresh trends');
+    } finally {
+      setRefreshingTrends(false);
+    }
+  };
 
   const fetchProjects = async () => {
     try {
