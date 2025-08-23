@@ -98,9 +98,9 @@ export const aiAPI = {
 };
 
 export const aiChatAPI = {
-  chat: (message) => api.post('/api/ai-chat/chat', { message }),
   advancedChat: (message) => api.post('/api/ai-chat/chat', { message }),
-  projectChat: (message, projectId) => api.post('/api/ai-chat/project-chat', { message, projectId }),
+  chat: (message) => api.post('/ai-chat/chat', { message }),
+  projectChat: ({ message, projectId }) => api.post('/api/ai-chat/project-chat', { message, projectId }),
   generateIdeas: (topic, industry) => api.post('/api/ai-chat/project-ideas', { topic, industry })
 };
 
