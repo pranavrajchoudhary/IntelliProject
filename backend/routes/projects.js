@@ -16,13 +16,15 @@ router.get('/:id', protect, authorizeProjectAccess('read'), projectController.ge
 // Update project - Only admins and project owners
 router.put('/:id', protect, authorizeProjectAccess('update'), projectController.updateProject);
 
-// Delete project - Only admins
-router.delete('/:id', protect, authorizeRoles('admin'), authorizeProjectAccess('delete'), projectController.deleteProject);
+router.delete(
+  '/:id',
+  protect,
+  authorizeProjectAccess('delete'),
+  projectController.deleteProject
+);
 
 // Add member - Only admins and project owners
 router.post('/:id/members', protect, authorizeProjectAccess('update'), projectController.addMember);
 
-// Remove member - Only admins and project owners
-router.delete('/:id/members/:memberId', protect, authorizeProjectAccess('update'), projectController.removeMember);
 
 module.exports = router;

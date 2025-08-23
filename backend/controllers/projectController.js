@@ -103,13 +103,23 @@ const updateProject = asyncHandler(async (req, res) => {
 // Delete project - Only admins
 const deleteProject = asyncHandler(async (req, res) => {
   const project = req.project;
+  const user = req.user;
+
+  // Allow only admins and project owners
+  const canDelete = user.role === 'admin' || project.owner.toString() === user._id.toString();
+
+  if (!canDelete) {
+    return res.status(403).json({
+      message: 'Only admins and project owners can delete projects'
+    });
+  }
 
   // Delete all tasks in the project
   await Task.deleteMany({ project: project._id });
-  
+
   // Delete the project
   await Project.findByIdAndDelete(project._id);
-  
+
   res.json({ message: 'Project and all associated tasks deleted successfully' });
 });
 

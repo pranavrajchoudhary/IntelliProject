@@ -110,5 +110,23 @@ export const uploadAPI = {
   }),
 };
 
+export const meetingAPI = {
+  // Meeting rooms
+  createMeeting: (data) => api.post('/meetings', data),
+  getActiveMeetings: () => api.get('/meetings/active'),
+  getMeetingHistory: (page = 1, limit = 10) => api.get(`/meetings/history?page=${page}&limit=${limit}`),
+  
+  // Room actions
+  joinMeeting: (roomId) => api.post(`/meetings/${roomId}/join`),
+  leaveMeeting: (roomId) => api.post(`/meetings/${roomId}/leave`),
+  endMeeting: (roomId) => api.post(`/meetings/${roomId}/end`),
+  
+  // Settings and controls
+  updateSettings: (roomId, settings) => api.put(`/meetings/${roomId}/settings`, { settings }),
+  muteParticipant: (roomId, participantId, muted) => 
+    api.put(`/meetings/${roomId}/participants/${participantId}/mute`, { muted }),
+};
+
+
 
 export default api;
