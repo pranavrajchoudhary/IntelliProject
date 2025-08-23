@@ -29,13 +29,14 @@ const Chat = ({ projectId, onClose }) => {
     // If AI mode is ON and message includes "@AI"
     if (aiMode && newMessage.trim().toLowerCase().includes('@ai')) {
   // Add user's message to chat
-  setAIMessages(prev => [
+  setMessages(prev => [
     ...prev,
     {
       _id: Date.now().toString() + '-user',
       content: newMessage,
-      sender: { name: user.name },
-      isAI: false
+      sender: { _id: user._id, name: user.name },
+      isAI: false,
+      createdAt: new Date().toISOString()
     }
   ]);
   try {
@@ -43,26 +44,36 @@ const Chat = ({ projectId, onClose }) => {
       message: newMessage.replace(/@ai/gi, '').trim(),
       projectId
     });
-    setAIMessages(prev => [
-      ...prev,
-      {
-        _id: Date.now().toString(),
-        content: response.data.message,
-        sender: { name: 'AI Assistant' },
-        isAI: true
-      }
-    ]);
+
+    // Save AI response as a chat message
+    const aiMessage = {
+      content: response.data.message,
+      projectId,
+      sender: { name: 'AI Assistant', _id: 'ai-assistant' }
+    };
+    const savedAIMessage = await messageAPI.createMessage(aiMessage);
+
+    socket.emit('chatMessage', {
+      roomId: projectId,
+      ...savedAIMessage.data
+    });
+
+    setMessages(prev => [...prev, savedAIMessage.data]);
     setNewMessage('');
   } catch (error) {
-    setAIMessages(prev => [
-      ...prev,
-      {
-        _id: Date.now().toString(),
-        content: "Sorry, AI Assistant couldn't answer right now.",
-        sender: { name: 'AI Assistant' },
-        isAI: true
-      }
-    ]);
+    const errorMessage = {
+      content: "Sorry, AI Assistant couldn't answer right now.",
+      projectId,
+      sender: { name: 'AI Assistant', _id: 'ai-assistant' }
+    };
+    const savedErrorMessage = await messageAPI.createMessage(errorMessage);
+
+    socket.emit('chatMessage', {
+      roomId: projectId,
+      ...savedErrorMessage.data
+    });
+
+    setMessages(prev => [...prev, savedErrorMessage.data]);
     setNewMessage('');
   }
   return;
