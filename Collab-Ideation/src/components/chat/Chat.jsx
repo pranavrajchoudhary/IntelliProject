@@ -3,7 +3,8 @@ import { motion } from 'framer-motion';
 import { Send, X, User } from 'lucide-react';
 import { useSocket } from '../../context/SocketContext';
 import { useAuth } from '../../context/AuthContext';
-import { messageAPI } from '../../services/api';
+import { messageAPI, aiChatAPI } from '../../services/api';
+
 
 const Chat = ({ projectId, onClose }) => {
   const [messages, setMessages] = useState([]);
@@ -13,12 +14,78 @@ const Chat = ({ projectId, onClose }) => {
   const { socket, joinRoom } = useSocket();
   const { user } = useAuth();
   const [aiMode, setAIMode] = useState(false);
+   const [aiMessages, setAIMessages] = useState([]);
 
   useEffect(() => {
     if (projectId) {
       fetchMessages();
     }
   }, [projectId]);
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !socket || !user) return;
+
+    // If AI mode is ON and message includes "@AI"
+    if (aiMode && newMessage.trim().toLowerCase().includes('@ai')) {
+  // Add user's message to chat
+  setAIMessages(prev => [
+    ...prev,
+    {
+      _id: Date.now().toString() + '-user',
+      content: newMessage,
+      sender: { name: user.name },
+      isAI: false
+    }
+  ]);
+  try {
+    const response = await aiChatAPI.projectChat({
+      message: newMessage.replace(/@ai/gi, '').trim(),
+      projectId
+    });
+    setAIMessages(prev => [
+      ...prev,
+      {
+        _id: Date.now().toString(),
+        content: response.data.message,
+        sender: { name: 'AI Assistant' },
+        isAI: true
+      }
+    ]);
+    setNewMessage('');
+  } catch (error) {
+    setAIMessages(prev => [
+      ...prev,
+      {
+        _id: Date.now().toString(),
+        content: "Sorry, AI Assistant couldn't answer right now.",
+        sender: { name: 'AI Assistant' },
+        isAI: true
+      }
+    ]);
+    setNewMessage('');
+  }
+  return;
+}
+
+    // Normal chat message
+    try {
+      const response = await messageAPI.createMessage({
+        content: newMessage,
+        projectId: projectId
+      });
+
+      socket.emit('chatMessage', {
+        roomId: projectId,
+        ...response.data
+      });
+
+      setMessages(prev => [...prev, response.data]);
+      setNewMessage('');
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    }
+  };
 
   const fetchMessages = async () => {
     try {
@@ -53,28 +120,6 @@ const Chat = ({ projectId, onClose }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !socket || !user) return;
-
-    try {
-      const response = await messageAPI.createMessage({
-        content: newMessage,
-        projectId: projectId
-      });
-
-      socket.emit('chatMessage', {
-        roomId: projectId,
-        ...response.data
-      });
-
-      setMessages(prev => [...prev, response.data]);
-      setNewMessage('');
-    } catch (error) {
-      console.error('Failed to send message:', error);
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex flex-col h-full bg-white border-l-2 border-black">
@@ -105,12 +150,6 @@ const Chat = ({ projectId, onClose }) => {
         </div>
       </div>
 
-      {aiMode ? (
-        <ProjectAIChat 
-          projectId={projectId} 
-          projectTitle="Current Project" 
-        />
-      ) : (
         <>
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -150,7 +189,23 @@ const Chat = ({ projectId, onClose }) => {
                 </motion.div>
               ))
             )}
-            <div ref={messagesEndRef} />
+            {aiMessages.map((message) => (
+          <motion.div
+            key={message._id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex justify-start"
+          >
+            <div className="max-w-xs bg-blue-100 text-black rounded-lg p-3">
+              <div className="flex items-center space-x-2 mb-1">
+                <User className="w-4 h-4 text-blue-600" />
+                <span className="text-xs font-medium">{message.sender.name}</span>
+              </div>
+              <p className="text-sm whitespace-pre-line">{message.content}</p>
+            </div>
+          </motion.div>
+        ))}
+        <div ref={messagesEndRef} />
           </div>
 
           {/* Input */}
@@ -175,7 +230,6 @@ const Chat = ({ projectId, onClose }) => {
             </div>
           </form>
         </>
-      )}
     </div>
   );
 };
