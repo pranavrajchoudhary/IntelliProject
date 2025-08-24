@@ -12,7 +12,7 @@ import {
   LogOut,
   User,
   Trello,
-  ChevronDown, Circle
+  ChevronDown, Circle, Video,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
@@ -32,6 +32,7 @@ const Layout = ({ children }) => {
     { name: 'Projects', href: '/projects', icon: FolderOpen },
     { name: 'Kanban Board', href: '/kanban', icon: Trello },
     { name: 'Messages', href: '/messages', icon: MessageSquare },
+    { name: 'Meetings', href: '/meetings', icon: Video },
     { name: 'Documents', href: '/documents', icon: FileText },
     { name: 'Analytics', href: '/analytics', icon: BarChart3 },
     { name: 'Settings', href: '/settings', icon: Settings },

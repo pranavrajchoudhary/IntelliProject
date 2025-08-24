@@ -17,6 +17,8 @@ import SettingsPage from './components/settings/SettingsPage';
 import BackendLoader from './components/BackendLoader';
 import KanbanBoard from './components/KanbanBoard';
 import { CurrentProjectProvider } from './context/CurrentProjectContext';
+import MeetingsPage from './components/meetings/MeetingsPage';
+import MeetingRoom from './components/meetings/MeetingRoom';
 
 function App() {
   const [backendReady, setBackendReady] = useState(false);
@@ -83,6 +85,20 @@ function App() {
                   <Layout>
                     <MessagesPage />
                   </Layout>
+                </AuthGuard>
+              } />
+
+              <Route path="/meetings" element={
+                <AuthGuard>
+                  <Layout>
+                    <MeetingsPage />
+                  </Layout>
+                </AuthGuard>
+              } />
+
+              <Route path="/meetings/:roomId" element={
+                <AuthGuard>
+                  <MeetingRoom />
                 </AuthGuard>
               } />
               
