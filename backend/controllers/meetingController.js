@@ -159,13 +159,13 @@ exports.leaveMeetingRoom = asyncHandler(async (req, res) => {
   }
 
   // Emit participant left
-  const io = req.app.get('io');
-  if (io) {
-    io.to(`meeting-${roomId}`).emit('participantLeft', {
-      userId,
-      roomId
-    });
-  }
+ const io = req.app.get('io');
+if (io) {
+  io.to(`meeting-${roomId}`).emit('participantLeft', {
+  userId: userId,
+  userName: req.user.name,
+});
+}
 
   res.json({ message: 'Left meeting room successfully' });
 });

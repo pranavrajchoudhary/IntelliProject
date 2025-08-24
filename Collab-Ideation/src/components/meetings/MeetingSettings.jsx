@@ -1,18 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Settings, 
-  X, 
-  Mic, 
-  MicOff, 
-  Palette, 
-  Users,
-  Lock,
-  Unlock,
-  UserPlus,
-  UserMinus,
-  Save
-} from 'lucide-react';
+import { Settings, X, Mic, MicOff, Palette, Users, Lock, Unlock, UserPlus, UserMinus, Save } from 'lucide-react';
 import { meetingAPI, userAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 
@@ -27,6 +15,15 @@ const MeetingSettings = ({ meeting, onUpdateSettings, onClose }) => {
   const [users, setUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showUserSearch, setShowUserSearch] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  useEffect(() => {
+    // Sync with meeting settings when they change
+    if (meeting?.settings) {
+      setSettings(meeting.settings);
+      setHasUnsavedChanges(false);
+    }
+  }, [meeting?.settings]);
 
   useEffect(() => {
     if (settings.whiteboardAccess === 'specific') {
@@ -45,64 +42,56 @@ const MeetingSettings = ({ meeting, onUpdateSettings, onClose }) => {
 
   const handleSettingChange = (key, value) => {
     setSettings(prev => ({ ...prev, [key]: value }));
+    setHasUnsavedChanges(true);
   };
 
-  const handleSaveSettings = async () => {
-    setLoading(true);
-    try {
-      await onUpdateSettings(settings);
-      toast.success('Meeting settings updated');
-    } catch (error) {
-      toast.error('Failed to update settings');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Save all settings at once
+  const handleSaveAllSettings = async () => {
+  setLoading(true);
+  try {
+    // Prepare settings payload
+    const settingsPayload = {
+      allowAllToSpeak: settings.allowAllToSpeak,
+      muteAllMembers: settings.muteAllMembers,
+      whiteboardAccess: settings.whiteboardAccess,
+      whiteboardAllowedUsers: settings.whiteboardAllowedUsers
+    };
 
-  const handleMuteAll = async () => {
-    const newMuteState = !settings.muteAllMembers;
-    setSettings(prev => ({ ...prev, muteAllMembers: newMuteState }));
+    // Update meeting settings
+    await meetingAPI.updateSettings(meeting._id, settingsPayload);
     
-    try {
-      if (newMuteState) {
-        await meetingAPI.muteAllParticipants(meeting._id);
-        toast.success('All participants muted');
-      } else {
-        await meetingAPI.unmuteAllParticipants(meeting._id);
-        toast.success('All participants unmuted');
-      }
-    } catch (error) {
-      toast.error('Failed to update mute settings');
-    }
-  };
-
-  const handleWhiteboardAccessChange = async (access) => {
-    setSettings(prev => ({ 
-      ...prev, 
-      whiteboardAccess: access,
-      whiteboardAllowedUsers: access === 'specific' ? prev.whiteboardAllowedUsers : []
-    }));
-
-    try {
+    // Update whiteboard access if changed
+    if (settings.whiteboardAccess !== meeting.settings?.whiteboardAccess || 
+        JSON.stringify(settings.whiteboardAllowedUsers) !== JSON.stringify(meeting.settings?.whiteboardAllowedUsers)) {
       await meetingAPI.updateWhiteboardAccess(
         meeting._id, 
-        access, 
-        access === 'specific' ? settings.whiteboardAllowedUsers : []
+        settings.whiteboardAccess, 
+        settings.whiteboardAllowedUsers
       );
-      toast.success('Whiteboard access updated');
-    } catch (error) {
-      toast.error('Failed to update whiteboard access');
     }
-  };
 
-  const addWhiteboardUser = (user) => {
-    if (!settings.whiteboardAllowedUsers.includes(user._id)) {
-      const newAllowedUsers = [...settings.whiteboardAllowedUsers, user._id];
-      setSettings(prev => ({ ...prev, whiteboardAllowedUsers: newAllowedUsers }));
-      
-      meetingAPI.updateWhiteboardAccess(meeting._id, 'specific', newAllowedUsers)
-        .then(() => toast.success(`${user.name} added to whiteboard access`))
-        .catch(() => toast.error('Failed to update whiteboard access'));
+    // Call parent update function
+    await onUpdateSettings(settingsPayload);
+    
+    setHasUnsavedChanges(false);
+    toast.success('Meeting settings updated successfully');
+  } catch (error) {
+    console.error('Failed to update settings:', error);
+    toast.error('Failed to update settings');
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+  const addWhiteboardUser = (selectedUser) => {
+    if (!settings.whiteboardAllowedUsers.includes(selectedUser._id)) {
+      const newAllowedUsers = [...settings.whiteboardAllowedUsers, selectedUser._id];
+      setSettings(prev => ({ 
+        ...prev, 
+        whiteboardAllowedUsers: newAllowedUsers 
+      }));
+      setHasUnsavedChanges(true);
     }
     setShowUserSearch(false);
     setSearchQuery('');
@@ -110,57 +99,75 @@ const MeetingSettings = ({ meeting, onUpdateSettings, onClose }) => {
 
   const removeWhiteboardUser = (userId) => {
     const newAllowedUsers = settings.whiteboardAllowedUsers.filter(id => id !== userId);
-    setSettings(prev => ({ ...prev, whiteboardAllowedUsers: newAllowedUsers }));
-    
-    meetingAPI.updateWhiteboardAccess(meeting._id, 'specific', newAllowedUsers)
-      .then(() => toast.success('User removed from whiteboard access'))
-      .catch(() => toast.error('Failed to update whiteboard access'));
+    setSettings(prev => ({ 
+      ...prev, 
+      whiteboardAllowedUsers: newAllowedUsers 
+    }));
+    setHasUnsavedChanges(true);
   };
 
-  const filteredUsers = users.filter(user => 
+  const handleWhiteboardAccessChange = (access) => {
+  setSettings(prev => ({
+    ...prev,
+    whiteboardAccess: access,
+    whiteboardAllowedUsers: access === 'specific' ? prev.whiteboardAllowedUsers : []
+  }));
+  setHasUnsavedChanges(true);
+};
+
+  const filteredUsers = users.filter(user =>
     user.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
     !settings.whiteboardAllowedUsers.includes(user._id)
   );
 
-  const allowedUsers = users.filter(user => 
+  const allowedUsers = users.filter(user =>
     settings.whiteboardAllowedUsers.includes(user._id)
   );
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-700">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Settings className="h-5 w-5 text-gray-400 mr-2" />
-            <h3 className="text-lg font-semibold text-white">Meeting Settings</h3>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-999">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+      >
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div className="flex items-center space-x-2">
+            <Settings className="w-5 h-5 text-gray-600" />
+            <h2 className="text-xl font-semibold text-gray-800">Meeting Settings</h2>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <X className="h-5 w-5" />
+            <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
-      </div>
 
-      {/* Settings Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        
-        {/* Audio Settings */}
-        <div className="space-y-4">
-          <h4 className="text-white font-medium flex items-center">
-            <Mic className="h-4 w-4 mr-2" />
-            Audio Controls
-          </h4>
-          
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-gray-300 text-sm">Allow all to speak</label>
+        <div className="p-6 space-y-8">
+          {/* Audio Controls */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-gray-800 flex items-center space-x-2">
+              <Mic className="w-5 h-5" />
+              <span>Audio Controls</span>
+            </h3>
+
+            {/* Immediate Mute/Unmute Actions */}
+            <div className="flex space-x-4">
+              
+            </div>
+
+            {/* Allow All to Speak Toggle */}
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div>
+                <p className="font-medium text-gray-800">Allow All to Speak</p>
+                <p className="text-sm text-gray-600">Let participants unmute themselves</p>
+              </div>
               <button
                 onClick={() => handleSettingChange('allowAllToSpeak', !settings.allowAllToSpeak)}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  settings.allowAllToSpeak ? 'bg-green-600' : 'bg-gray-600'
+                  settings.allowAllToSpeak ? 'bg-blue-600' : 'bg-gray-200'
                 }`}
               >
                 <span
@@ -170,173 +177,136 @@ const MeetingSettings = ({ meeting, onUpdateSettings, onClose }) => {
                 />
               </button>
             </div>
-
-            <button
-              onClick={handleMuteAll}
-              className={`w-full p-3 rounded-lg flex items-center justify-center space-x-2 transition-colors ${
-                settings.muteAllMembers 
-                  ? 'bg-red-600 hover:bg-red-700' 
-                  : 'bg-gray-700 hover:bg-gray-600'
-              }`}
-            >
-              {settings.muteAllMembers ? (
-                <>
-                  <MicOff className="h-4 w-4" />
-                  <span>Unmute All</span>
-                </>
-              ) : (
-                <>
-                  <MicOff className="h-4 w-4" />
-                  <span>Mute All</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Whiteboard Settings */}
-        <div className="space-y-4">
-          <h4 className="text-white font-medium flex items-center">
-            <Palette className="h-4 w-4 mr-2" />
-            Whiteboard Access
-          </h4>
-          
-          <div className="space-y-2">
-            {[
-              { value: 'all', label: 'Everyone can edit', icon: Users, description: 'All participants can draw' },
-              { value: 'host-only', label: 'Host only', icon: Lock, description: 'Only you can draw' },
-              { value: 'specific', label: 'Specific users', icon: UserPlus, description: 'Choose who can draw' },
-              { value: 'disabled', label: 'Disabled', icon: X, description: 'No one can draw' }
-            ].map((option) => {
-              const Icon = option.icon;
-              return (
-                <button
-                  key={option.value}
-                  onClick={() => handleWhiteboardAccessChange(option.value)}
-                  className={`w-full p-3 rounded-lg flex items-center space-x-3 transition-colors ${
-                    settings.whiteboardAccess === option.value
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  <div className="text-left">
-                    <div className="font-medium">{option.label}</div>
-                    <div className="text-xs opacity-75">{option.description}</div>
-                  </div>
-                </button>
-              );
-            })}
           </div>
 
-          {/* Specific Users Selection */}
-          {settings.whiteboardAccess === 'specific' && (
-            <div className="space-y-3 mt-4">
-              <div className="flex items-center justify-between">
-                <h5 className="text-white text-sm font-medium">Allowed Users</h5>
-                <button
-                  onClick={() => setShowUserSearch(!showUserSearch)}
-                  className="p-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <UserPlus className="h-4 w-4" />
-                </button>
-              </div>
+          {/* Whiteboard Controls */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-gray-800 flex items-center space-x-2">
+              <Palette className="w-5 h-5" />
+              <span>Whiteboard Access</span>
+            </h3>
 
-              {/* User Search */}
-              {showUserSearch && (
-                <div className="space-y-2">
+            <div className="space-y-3">
+              {/* Access Level Options */}
+              {[
+                { value: 'all', label: 'Everyone can edit', icon: Users },
+                { value: 'host-only', label: 'Host only', icon: Lock },
+                { value: 'specific', label: 'Specific users', icon: UserPlus },
+                { value: 'disabled', label: 'Disabled', icon: X }
+              ].map(({ value, label, icon: Icon }) => (
+                <div key={value} className="flex items-center space-x-3">
                   <input
-                    type="text"
-                    placeholder="Search users..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full p-2 bg-gray-700 rounded-lg text-white placeholder-gray-400"
+                    type="radio"
+                    id={`whiteboard-${value}`}
+                    name="whiteboardAccess"
+                    value={value}
+                    checked={settings.whiteboardAccess === value}
+                    onChange={(e) => handleSettingChange('whiteboardAccess', e.target.value)}
+                    className="text-blue-600 focus:ring-blue-500"
                   />
-                  <div className="max-h-32 overflow-y-auto space-y-1">
-                    {filteredUsers.map(user => (
-                      <button
-                        key={user._id}
-                        onClick={() => addWhiteboardUser(user)}
-                        className="w-full p-2 bg-gray-700 rounded-lg text-left hover:bg-gray-600 transition-colors"
-                      >
-                        <div className="text-white text-sm">{user.name}</div>
-                        <div className="text-gray-400 text-xs">{user.email}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Allowed Users List */}
-              <div className="space-y-2">
-                {allowedUsers.map(user => (
-                  <div
-                    key={user._id}
-                    className="flex items-center justify-between p-2 bg-gray-700 rounded-lg"
+                  <label
+                    htmlFor={`whiteboard-${value}`}
+                    className="flex items-center space-x-2 text-gray-700 cursor-pointer"
                   >
-                    <div>
-                      <div className="text-white text-sm">{user.name}</div>
-                      <div className="text-gray-400 text-xs">{user.email}</div>
-                    </div>
-                    <button
-                      onClick={() => removeWhiteboardUser(user._id)}
-                      className="p-1 text-red-400 hover:text-red-300 transition-colors"
+                    <Icon className="w-4 h-4" />
+                    <span>{label}</span>
+                  </label>
+                </div>
+              ))}
+            </div>
+
+            {/* Specific Users Management */}
+            {settings.whiteboardAccess === 'specific' && (
+              <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium text-gray-800">Allowed Users</h4>
+                  <button
+                    onClick={() => setShowUserSearch(!showUserSearch)}
+                    className="flex items-center space-x-1 px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>Add User</span>
+                  </button>
+                </div>
+
+                {/* Current Allowed Users */}
+                <div className="space-y-2">
+                  {allowedUsers.map((user) => (
+                    <div
+                      key={user._id}
+                      className="flex items-center justify-between p-2 bg-white rounded border"
                     >
-                      <UserMinus className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-                {allowedUsers.length === 0 && (
-                  <div className="text-gray-400 text-sm text-center py-2">
-                    No users selected
+                      <span className="text-gray-800">{user.name}</span>
+                      <button
+                        onClick={() => removeWhiteboardUser(user._id)}
+                        className="text-red-600 hover:text-red-800 p-1"
+                      >
+                        <UserMinus className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {allowedUsers.length === 0 && (
+                    <p className="text-gray-500 text-sm">No users selected</p>
+                  )}
+                </div>
+
+                {/* User Search */}
+                {showUserSearch && (
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      placeholder="Search users..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <div className="max-h-40 overflow-y-auto space-y-1">
+                      {filteredUsers.map((user) => (
+                        <button
+                          key={user._id}
+                          onClick={() => addWhiteboardUser(user)}
+                          className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded text-gray-800"
+                        >
+                          {user.name}
+                        </button>
+                      ))}
+                      {filteredUsers.length === 0 && (
+                        <p className="text-gray-500 text-sm px-3 py-2">No users found</p>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
-            </div>
-          )}
-        </div>
-
-        {/* Meeting Info */}
-        <div className="space-y-4">
-          <h4 className="text-white font-medium">Meeting Information</h4>
-          <div className="bg-gray-700 rounded-lg p-3 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Title:</span>
-              <span className="text-white">{meeting?.title}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Project:</span>
-              <span className="text-white">{meeting?.project?.title}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Host:</span>
-              <span className="text-white">{meeting?.host?.name}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Started:</span>
-              <span className="text-white">
-                {meeting?.startedAt && new Date(meeting.startedAt).toLocaleTimeString()}
-              </span>
-            </div>
+            )}
           </div>
         </div>
-      </div>
 
-      {/* Save Button */}
-      <div className="p-4 border-t border-gray-700">
-        <button
-          onClick={handleSaveSettings}
-          disabled={loading}
-          className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-        >
-          {loading ? (
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-          ) : (
-            <Save className="h-4 w-4 mr-2" />
-          )}
-          {loading ? 'Saving...' : 'Save Settings'}
-        </button>
-      </div>
+        {/* Footer with Save/Cancel */}
+        <div className="flex items-center justify-between p-6 bg-gray-50 border-t border-gray-200">
+          <div className="flex items-center space-x-2">
+            {hasUnsavedChanges && (
+              <span className="text-sm text-orange-600">● Unsaved changes</span>
+            )}
+          </div>
+          
+          <div className="flex space-x-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveAllSettings}
+              disabled={loading || !hasUnsavedChanges}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <Save className="w-4 h-4" />
+              <span>{loading ? 'Saving...' : 'Save Settings'}</span>
+            </button>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 };

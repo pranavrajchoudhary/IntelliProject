@@ -7,22 +7,26 @@ function saveWhiteboardToDatabase(meetingId, snapshot) {
   if (saveTimers.has(meetingId)) {
     clearTimeout(saveTimers.get(meetingId));
   }
-  
+
   const timer = setTimeout(async () => {
     try {
       await MeetingRoom.findByIdAndUpdate(meetingId, {
-        whiteboardData: snapshot,
+        whiteboardData: snapshot, // Save complete snapshot directly
         lastWhiteboardUpdate: new Date()
       });
-      console.log(`Whiteboard saved for meeting ${meetingId}`);
+      
+      console.log(`Whiteboard snapshot saved for meeting ${meetingId}`);
     } catch (error) {
       console.error('Error saving whiteboard:', error);
     }
+
     saveTimers.delete(meetingId);
   }, 2000);
-  
+
   saveTimers.set(meetingId, timer);
 }
+
+
 
 function initSocket(io) {
   // initTldrawSync(io);
@@ -269,60 +273,79 @@ socket.on('leaveWhiteboard', (data) => {
 });
 
 socket.on('whiteboardUpdate', (data) => {
-      const { meetingId, type, changes, userId, userName, timestamp } = data;
-      console.log(`Whiteboard update from ${userName}:`, changes);
-      
-      if (type === 'document' && whiteboardRooms.has(meetingId)) {
-        const room = whiteboardRooms.get(meetingId);
-        room.snapshot = changes;
-        room.lastUpdate = timestamp || Date.now();
-        
-        // ✅ This will now use the function defined outside
-        saveWhiteboardToDatabase(meetingId, changes);
-      }
+  const { meetingId, snapshot, userId, userName, timestamp } = data;
+  console.log(`Whiteboard snapshot from ${userName}`);
   
-  // Broadcast to all other users in the room
+  if (whiteboardRooms.has(meetingId)) {
+    const room = whiteboardRooms.get(meetingId);
+    room.snapshot = snapshot; // Store complete snapshot, not incremental changes
+    room.lastUpdate = timestamp || Date.now();
+    
+    // Save complete snapshot to database
+    saveWhiteboardToDatabase(meetingId, snapshot);
+  }
+
+  // Broadcast complete snapshot to all other users
   socket.to(`whiteboard-${meetingId}`).emit('whiteboardUpdate', {
-        meetingId,
-        type,
-        changes,
-        userId,
-        userName,
-        timestamp: timestamp || Date.now()
-      });
-    });
+    meetingId,
+    snapshot,
+    userId,
+    userName,
+    timestamp: timestamp || Date.now()
+  });
+});
+
 
 socket.on('requestWhiteboardSync', async (data) => {
   const { meetingId } = data;
+  console.log(`Whiteboard sync requested for meeting ${meetingId}`);
   
   try {
     let snapshot = null;
     
-    // First try to get from memory
+    // Try memory first
     if (whiteboardRooms.has(meetingId)) {
       snapshot = whiteboardRooms.get(meetingId).snapshot;
+      console.log('Found whiteboard data in memory');
     }
     
-    // If not in memory, try database
+    // Try database if not in memory
     if (!snapshot) {
       const room = await MeetingRoom.findById(meetingId);
       if (room && room.whiteboardData) {
         snapshot = room.whiteboardData;
+        console.log('Found whiteboard data in database');
+        
+        // Store in memory for future use
+        if (!whiteboardRooms.has(meetingId)) {
+          whiteboardRooms.set(meetingId, {
+            snapshot: snapshot,
+            users: new Map(),
+            lastUpdate: Date.now()
+          });
+        } else {
+          whiteboardRooms.get(meetingId).snapshot = snapshot;
+        }
       }
     }
     
-    if (snapshot) {
-      console.log('Sending whiteboard sync to user');
-      socket.emit('whiteboardSync', {
-        meetingId,
-        snapshot,
-        timestamp: Date.now()
-      });
-    }
+    // Send complete snapshot (or empty if none exists)
+    socket.emit('whiteboardSync', {
+      meetingId,
+      snapshot: snapshot || null,
+      timestamp: Date.now()
+    });
+    
   } catch (error) {
     console.error('Error syncing whiteboard:', error);
+    socket.emit('whiteboardSync', {
+      meetingId,
+      snapshot: null,
+      timestamp: Date.now()
+    });
   }
 });
+
 
   });
 }

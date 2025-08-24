@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Video, 
-  Users, 
-  Clock, 
-  Play, 
-  Square, 
+import {
+  Video,
+  Users,
+  Clock,
+  Play,
+  Square,
   Settings,
   LogIn
 } from 'lucide-react';
@@ -17,15 +17,24 @@ import toast from 'react-hot-toast';
 const ActiveMeetingCard = ({ meeting, onUpdate }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
-
+  const [currentTime, setCurrentTime] = useState(new Date());
+  
   const connectedParticipants = meeting.participants.filter(p => p.isConnected);
   const isHost = meeting.host._id === user._id;
   const canEnd = user.role === 'admin' || isHost;
-  
+
+  // Update time every second for real-time duration
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
   const formatDuration = (startTime) => {
-    const now = new Date();
     const start = new Date(startTime);
-    const diff = Math.floor((now - start) / (1000 * 60));
+    const diff = Math.floor((currentTime - start) / (1000 * 60));
     return `${diff} min`;
   };
 
@@ -54,77 +63,73 @@ const ActiveMeetingCard = ({ meeting, onUpdate }) => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-shadow"
+      className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow"
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
-          <div className="flex items-center mb-2">
-            <div className="p-2 bg-green-100 rounded-lg mr-3">
-              <Video className="h-5 w-5 text-green-600" />
+          <h3 className="text-lg font-semibold text-gray-800 mb-1">
+            {meeting.title}
+          </h3>
+          <p className="text-sm text-gray-600 mb-2">{meeting.project.title}</p>
+          
+          <div className="flex items-center space-x-4 text-sm text-gray-500">
+            <div className="flex items-center space-x-1">
+              <Users className="w-4 h-4" />
+              <span>{connectedParticipants.length} participant{connectedParticipants.length !== 1 ? 's' : ''}</span>
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">{meeting.title}</h3>
-              <p className="text-sm text-gray-600">{meeting.project.title}</p>
+            <div className="flex items-center space-x-1">
+              <Clock className="w-4 h-4" />
+              <span>{formatDuration(meeting.startedAt)}</span>
             </div>
-          </div>
-
-          <div className="flex items-center space-x-4 text-sm text-gray-600">
-            <div className="flex items-center">
-              <Users className="h-4 w-4 mr-1" />
-              {connectedParticipants.length} participant{connectedParticipants.length !== 1 ? 's' : ''}
-            </div>
-            <div className="flex items-center">
-              <Clock className="h-4 w-4 mr-1" />
-              {formatDuration(meeting.startedAt)}
-            </div>
-            <div className="flex items-center">
-              <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-              Live
-            </div>
-          </div>
-
-          <div className="mt-3">
-            <p className="text-sm text-gray-600">
-              Hosted by <span className="font-medium">{meeting.host.name}</span>
-            </p>
           </div>
         </div>
-
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={handleJoinMeeting}
-            className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors flex items-center"
-          >
-            <LogIn className="h-4 w-4 mr-2" />
-            Join
-          </button>
-
-          {canEnd && (
-            <button
-              onClick={handleEndMeeting}
-              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center"
-            >
-              <Square className="h-4 w-4 mr-2" />
-              End
-            </button>
-          )}
+        
+        <div className="flex items-center space-x-2 ml-4">
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+            <div className="w-2 h-2 bg-red-400 rounded-full mr-1 animate-pulse"></div>
+            Live
+          </span>
         </div>
       </div>
 
+      <div className="mb-4">
+        <p className="text-sm text-gray-600">Hosted by {meeting.host.name}</p>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <button
+          onClick={handleJoinMeeting}
+          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <LogIn className="w-4 h-4" />
+          <span>Join</span>
+        </button>
+
+        {canEnd && (
+          <button
+            onClick={handleEndMeeting}
+            className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            <Square className="w-4 h-4" />
+            <span>End</span>
+          </button>
+        )}
+      </div>
+
       {/* Participants List */}
-      <div className="mt-4 pt-4 border-t">
-        <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 mt-4 pt-4 border-t border-gray-200">
+        <div className="flex -space-x-2">
           {connectedParticipants.slice(0, 5).map((participant, index) => (
             <div
               key={participant.user._id}
-              className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium text-gray-700"
+              className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-semibold border-2 border-white"
               title={participant.user.name}
             >
               {participant.user.name.charAt(0).toUpperCase()}
             </div>
           ))}
           {connectedParticipants.length > 5 && (
-            <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-xs text-gray-600">
+            <div className="w-8 h-8 rounded-full bg-gray-500 flex items-center justify-center text-white text-xs font-semibold border-2 border-white">
               +{connectedParticipants.length - 5}
             </div>
           )}
