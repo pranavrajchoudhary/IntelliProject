@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useMemo, useCallback } from 'react';
 import { authAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -34,7 +34,6 @@ export const AuthProvider = ({ children }) => {
     const userData = localStorage.getItem('user');
     
     if (token && userData) {
-      // Restore user from localStorage
       try {
         const user = JSON.parse(userData);
         dispatch({
@@ -42,7 +41,6 @@ export const AuthProvider = ({ children }) => {
           payload: { user, token }
         });
       } catch (error) {
-        // If user data is corrupted, clear everything
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         dispatch({ type: 'SET_LOADING', payload: false });
@@ -52,7 +50,8 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const login = async (email, password) => {
+  // Wrap functions in useCallback so they don't cause re-renders
+  const login = useCallback(async (email, password) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       const response = await authAPI.login(email, password);
@@ -85,9 +84,9 @@ export const AuthProvider = ({ children }) => {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, []);
 
-  const register = async (name, email, password, role) => {
+  const register = useCallback(async (name, email, password, role) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       const response = await authAPI.register(name, email, password, role);
@@ -120,27 +119,27 @@ export const AuthProvider = ({ children }) => {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     dispatch({ type: 'LOGOUT' });
     toast.success('Logged out successfully');
-  };
+  }, []);
+
+  // Memoize the context value
+  const contextValue = useMemo(() => ({
+    user: state.user,
+    token: state.token,
+    loading: state.loading,
+    login,
+    register,
+    logout
+  }), [state.user, state.token, state.loading, login, register, logout]);
 
   return (
-//     <AuthContext.Provider value={{
-//   user: state.user,
-//   token: state.token,
-//   loading: state.loading,
-//   login,
-//   register,
-//   logout
-// }}>
-//   {children}
-// </AuthContext.Provider>
-    <AuthContext.Provider value={{ ...state, login, register, logout }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

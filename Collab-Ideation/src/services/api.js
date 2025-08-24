@@ -123,8 +123,16 @@ export const meetingAPI = {
   
   // Settings and controls
   updateSettings: (roomId, settings) => api.put(`/meetings/${roomId}/settings`, { settings }),
-  muteParticipant: (roomId, participantId, muted) => 
-    api.put(`/meetings/${roomId}/participants/${participantId}/mute`, { muted }),
+  muteParticipant: (roomId, participantId, muted, canUnmute = true) => 
+    api.put(`/meetings/${roomId}/participants/${participantId}/mute`, { muted, canUnmute }),
+  
+  // Voice controls
+  muteAllParticipants: (roomId) => api.post(`/meetings/${roomId}/mute-all`),
+  unmuteAllParticipants: (roomId) => api.post(`/meetings/${roomId}/unmute-all`),
+  
+  // Whiteboard access
+  updateWhiteboardAccess: (roomId, access, allowedUsers) => 
+    api.put(`/meetings/${roomId}/whiteboard-access`, { access, allowedUsers }),
 };
 
 

@@ -11,6 +11,8 @@ const io = require('socket.io')(server, {
   cors: { origin: '*', methods: ['GET','POST'] }
 });
 
+app.set('io', io); 
+
 initSocket(io); // socket handlers
 
 const PORT = process.env.PORT || 5000;

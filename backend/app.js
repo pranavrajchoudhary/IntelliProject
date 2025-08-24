@@ -15,6 +15,7 @@ const settingsRoutes = require('./routes/settings');
 const aiRoutes = require('./routes/ai');
 const aiChatRoutes = require('./routes/aiChat');
 const uploadRoutes = require('./routes/upload');
+const meetingRoutes = require('./routes/meetings');
 
 const app = express();
 
@@ -35,6 +36,7 @@ app.use('/settings', settingsRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/ai-chat', aiChatRoutes);
 app.use('/upload', uploadRoutes);
+app.use('/meetings', meetingRoutes);
 
 app.get('/', (req, res) => res.json({ status: 'ok' }));
 
