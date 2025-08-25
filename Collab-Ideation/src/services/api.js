@@ -133,6 +133,9 @@ export const meetingAPI = {
   // Whiteboard access
   updateWhiteboardAccess: (roomId, access, allowedUsers) => 
     api.put(`/meetings/${roomId}/whiteboard-access`, { access, allowedUsers }),
+
+  kickParticipant: (roomId, participantId) => 
+  api.post(`/meetings/${roomId}/participants/${participantId}/kick`),
 };
 
 

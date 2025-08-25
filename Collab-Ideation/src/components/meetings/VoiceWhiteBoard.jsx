@@ -35,100 +35,127 @@ const VoiceWhiteboard = ({ meetingId, canEdit = true, meeting, user }) => {
   }, []);
 
   // Handle snapshot updates (throttled to avoid spam)
-  const sendSnapshot = useCallback(
-    throttle(() => {
-      if (!editorRef.current || !socket || !meetingId || isApplyingRemoteChange.current) {
-        return;
-      }
+  // Handle snapshot updates (throttled to avoid spam)
+const sendSnapshot = useCallback(
+  throttle(() => {
+    if (!editorRef.current || !socket || !meetingId || isApplyingRemoteChange.current) {
+      return;
+    }
+    try {
+      const snapshot = TldrawComp.getSnapshot(editorRef.current.store);
+      
+      // ✅ FIXED: Filter out session data to allow independent camera/page control
+      const filteredSnapshot = {
+        document: snapshot.document, // Keep shapes, pages, assets, etc.
+        // Exclude session data (camera position, current page, selected shapes, etc.)
+      };
+      
+      console.log('Sending whiteboard snapshot (document only)');
+      socket.emit('whiteboardUpdate', {
+        meetingId,
+        snapshot: filteredSnapshot, // Send filtered snapshot
+        userId: user._id,
+        userName: user.name,
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      console.error('Error sending whiteboard snapshot:', err);
+    }
+  }, 500),
+  [socket, meetingId, user, TldrawComp]
+);
 
-      try {
-        const snapshot = TldrawComp.getSnapshot(editorRef.current.store);
-        
-        // Filter out camera and pointer data to exclude movement
-        const filteredSnapshot = {
-          document: snapshot.document,
-          // Exclude session data which contains camera/viewport info
-        };
-
-        console.log('Sending whiteboard snapshot');
-        
-        socket.emit('whiteboardUpdate', {
-          meetingId,
-          snapshot: filteredSnapshot,
-          userId: user._id,
-          userName: user.name,
-          timestamp: Date.now()
-        });
-      } catch (err) {
-        console.error('Error sending whiteboard snapshot:', err);
-      }
-    }, 500),
-    [socket, meetingId, user, TldrawComp]
-  );
 
   // Socket connection for whiteboard sync
-  useEffect(() => {
-    if (!socket || !meetingId || !tldrawLoaded || !TldrawComp) return;
+useEffect(() => {
+  if (!socket || !meetingId || !tldrawLoaded || !TldrawComp) return;
 
-    const handleWhiteboardUpdate = (data) => {
-      if (data?.meetingId !== meetingId || !editorRef.current || data.userId === user._id) return;
-      
-      console.log('Received whiteboard update from:', data.userName);
-      
-      if (data.snapshot) {
-        isApplyingRemoteChange.current = true;
-        
-        try {
-          TldrawComp.loadSnapshot(editorRef.current.store, data.snapshot);
-          console.log('Applied whiteboard update');
-        } catch (err) {
-          console.error('Error applying whiteboard update:', err);
-        }
-        
-        setTimeout(() => {
-          isApplyingRemoteChange.current = false;
-        }, 100);
-      }
-    };
-
-    const handleWhiteboardSync = (data) => {
-      if (data?.meetingId !== meetingId || !editorRef.current) return;
-      
-      console.log('Received whiteboard sync:', data);
-      
-      if (data.snapshot) {
-        isApplyingRemoteChange.current = true;
-        
-        try {
-          TldrawComp.loadSnapshot(editorRef.current.store, data.snapshot);
-          console.log('Loaded whiteboard from sync');
-        } catch (err) {
-          console.error('Error loading whiteboard sync:', err);
-        }
-        
-        setTimeout(() => {
-          isApplyingRemoteChange.current = false;
-        }, 100);
-      }
-    };
-
-    socket.on('whiteboardUpdate', handleWhiteboardUpdate);
-    socket.on('whiteboardSync', handleWhiteboardSync);
-
-    socket.emit('joinWhiteboard', { meetingId, userId: user._id, userName: user.name });
+ const handleWhiteboardUpdate = (data) => {
+  if (data?.meetingId !== meetingId || !editorRef.current || data.userId === user._id) return;
+  
+  console.log('Received whiteboard update from:', data.userName);
+  if (data.snapshot && data.snapshot.document) {
+    isApplyingRemoteChange.current = true;
     
-    // Request sync after a small delay
-    setTimeout(() => {
-      console.log('Requesting whiteboard sync');
-      socket.emit('requestWhiteboardSync', { meetingId });
-    }, 1000);
+    try {
+      // ✅ FIXED: Only apply document changes, preserve session state
+      const currentSnapshot = TldrawComp.getSnapshot(editorRef.current.store);
+      
+      const mergedSnapshot = {
+        ...currentSnapshot, // Keep current session state (camera, page, selection)
+        document: data.snapshot.document // Apply new document data
+      };
+      
+      TldrawComp.loadSnapshot(editorRef.current.store, mergedSnapshot);
+      console.log('Applied whiteboard update (document only)');
+    } catch (err) {
+      console.error('Error applying whiteboard update:', err);
+      setTimeout(() => {
+        socket.emit('requestWhiteboardSync', { meetingId });
+      }, 1000);
+    } finally {
+      setTimeout(() => {
+        isApplyingRemoteChange.current = false;
+      }, 100);
+    }
+  }
+};
 
-    return () => {
-      socket.off('whiteboardUpdate', handleWhiteboardUpdate);
-      socket.off('whiteboardSync', handleWhiteboardSync);
-      socket.emit('leaveWhiteboard', { meetingId, userId: user._id });
-    };
-  }, [socket, meetingId, tldrawLoaded, user, TldrawComp]);
+
+  const handleWhiteboardSync = (data) => {
+  if (data?.meetingId !== meetingId || !editorRef.current) return;
+  
+  console.log('Received whiteboard sync:', data);
+  if (data.snapshot && data.snapshot.document) {
+    isApplyingRemoteChange.current = true;
+    
+    try {
+      // ✅ FIXED: Only sync document, preserve user's session state
+      const currentSnapshot = TldrawComp.getSnapshot(editorRef.current.store);
+      
+      const mergedSnapshot = {
+        ...currentSnapshot, // Keep current session state
+        document: data.snapshot.document // Apply synced document data
+      };
+      
+      TldrawComp.loadSnapshot(editorRef.current.store, mergedSnapshot);
+      console.log('Loaded whiteboard from sync (document only)');
+    } catch (err) {
+      console.error('Error loading whiteboard sync:', err);
+    } finally {
+      setTimeout(() => {
+        isApplyingRemoteChange.current = false;
+      }, 100);
+    }
+  } else if (data.snapshot === null) {
+    console.log('No existing whiteboard data');
+    // Don't do anything - keep current session state
+  }
+};
+
+  socket.on('whiteboardUpdate', handleWhiteboardUpdate);
+  socket.on('whiteboardSync', handleWhiteboardSync);
+
+  socket.emit('joinWhiteboard', { 
+    meetingId, 
+    userId: user._id, 
+    userName: user.name 
+  });
+
+  // ✅ FIXED: Request sync after component is fully mounted
+  const syncTimer = setTimeout(() => {
+    console.log('Requesting whiteboard sync');
+    socket.emit('requestWhiteboardSync', { meetingId });
+  }, 2000); // Increased delay
+
+  return () => {
+    clearTimeout(syncTimer);
+    socket.off('whiteboardUpdate', handleWhiteboardUpdate);
+    socket.off('whiteboardSync', handleWhiteboardSync);
+    socket.emit('leaveWhiteboard', { meetingId, userId: user._id });
+  };
+}, [socket, meetingId, tldrawLoaded, user._id, user.name, TldrawComp]);
+
 
   // Handle permission changes
   useEffect(() => {
@@ -154,22 +181,29 @@ const VoiceWhiteboard = ({ meetingId, canEdit = true, meeting, user }) => {
     };
   }, [socket, meetingId, tldrawLoaded, meeting, user]);
 
-  const onMount = useCallback((editor) => {
-    editorRef.current = editor;
-    console.log('Tldraw mounted successfully');
-    
-    // Set read-only state based on permissions
-    const canEditNow = hasEditPermission();
-    editor.updateInstanceState({ isReadonly: !canEditNow });
-    
-    // Listen for store changes and send snapshots
-    const dispose = editor.store.listen(() => {
-      if (isApplyingRemoteChange.current || !canEditNow) return;
-      sendSnapshot();
-    });
-    
-    editor._disposeStoreListener = dispose;
-  }, [sendSnapshot]);
+  // ✅ FIXED: Remove sendSnapshot from dependencies and use ref pattern
+const sendSnapshotRef = useRef();
+sendSnapshotRef.current = sendSnapshot;
+
+const onMount = useCallback((editor) => {
+  editorRef.current = editor;
+  console.log('Tldraw mounted successfully');
+  
+  // Set read-only state based on permissions
+  const canEditNow = hasEditPermission();
+  editor.updateInstanceState({ isReadonly: !canEditNow });
+  
+  // Listen for store changes and send snapshots
+  const dispose = editor.store.listen(() => {
+    if (isApplyingRemoteChange.current || !canEditNow) return;
+    if (sendSnapshotRef.current) {
+      sendSnapshotRef.current();
+    }
+  });
+  
+  editor._disposeStoreListener = dispose;
+}, []); // ✅ Empty dependency array prevents re-creation
+
 
   useEffect(() => {
     return () => {
@@ -180,23 +214,24 @@ const VoiceWhiteboard = ({ meetingId, canEdit = true, meeting, user }) => {
   }, []);
 
   // Check permissions before rendering
-  const hasEditPermission = () => {
-    if (!canEdit) return false;
-    if (!meeting?.settings) return true;
-    
-    const { whiteboardAccess, whiteboardAllowedUsers } = meeting.settings;
-    const isHost = meeting.host._id === user._id;
-    
-    switch (whiteboardAccess) {
-      case 'all': return true;
-      case 'host-only': return isHost;
-      case 'specific': return whiteboardAllowedUsers?.includes(user._id) || isHost;
-      case 'disabled': return false;
-      default: return true;
-    }
-  };
+  // ✅ FIXED: Move this outside and memoize it
+const hasEditPermission = useCallback(() => {
+  if (!canEdit) return false;
+  if (!meeting?.settings) return true;
+  
+  const { whiteboardAccess, whiteboardAllowedUsers } = meeting.settings;
+  const isHost = meeting.host._id === user._id;
+  
+  switch (whiteboardAccess) {
+    case 'all': return true;
+    case 'host-only': return isHost;
+    case 'specific': return whiteboardAllowedUsers?.includes(user._id) || isHost;
+    case 'disabled': return false;
+    default: return true;
+  }
+}, [canEdit, meeting?.settings, meeting?.host, user._id]);
 
-  const actualCanEdit = hasEditPermission();
+const actualCanEdit = hasEditPermission();
 
   return (
     <div className="w-full h-full relative">

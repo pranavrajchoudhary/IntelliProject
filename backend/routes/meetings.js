@@ -34,6 +34,8 @@ router.post('/:roomId/mute-all', protect, meetingController.muteAllParticipants)
 // Unmute all participants (Host or Admin only)
 router.post('/:roomId/unmute-all', protect, meetingController.unmuteAllParticipants);
 
+router.post('/:roomId/participants/:participantId/kick', protect, meetingController.kickParticipant);
+
 // Update whiteboard access (Host or Admin only)
 router.put('/:roomId/whiteboard-access', protect, meetingController.updateWhiteboardAccess);
 
