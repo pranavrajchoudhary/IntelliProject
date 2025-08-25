@@ -62,12 +62,15 @@ const ParticipantsList = ({
         return;
       }
 
-      if (currentMutedState && !currentCanUnmute) {
-        toast.error('You cannot unmute yourself - muted by host');
-        return;
-      }
+      if (currentMutedState && !currentCanUnmute && participantId === currentUser._id) {
+      toast.error('You cannot unmute yourself - muted by host');
+      return;
+    }
 
-      await onMuteParticipant(participantId, !currentMutedState, true);
+      // Toggle the mute state
+    const newMutedState = !currentMutedState;
+    await onMuteParticipant(participantId, newMutedState, true);
+
     } catch (error) {
       console.error('Failed to mute/unmute participant:', error);
       toast.error(error.response?.data?.message || 'Failed to update participant mute status');
@@ -77,20 +80,33 @@ const ParticipantsList = ({
   };
 
   const handleIndividualMute = async (participantId, currentCanUnmute) => {
-    try {
-      setLoading(true);
-      // Toggle canUnmute permission for individual control
+  try {
+    setLoading(true);
+    
+    // Find the participant to check their current mute status
+    const participant = participants.find(p => p.user._id === participantId);
+    const isCurrentlyMuted = participant?.isMuted || false;
+    
+    if (!isCurrentlyMuted) {
+      // Participant is unmuted, so mute them AND remove permission
+      await onMuteParticipant(participantId, true, false); // muted=true, canUnmute=false
+      toast.success('Participant muted and cannot unmute');
+    } else {
+      // Participant is muted, so toggle their unmute permission
       const newCanUnmute = !currentCanUnmute;
       await onMuteParticipant(participantId, true, newCanUnmute);
-      setShowDropdown(null);
       toast.success(newCanUnmute ? 'Participant can now unmute themselves' : 'Participant muted and cannot unmute');
-    } catch (error) {
-      console.error('Failed to mute participant:', error);
-      toast.error('Failed to mute participant');
-    } finally {
-      setLoading(false);
     }
-  };
+    
+    setShowDropdown(null);
+  } catch (error) {
+    console.error('Failed to mute participant:', error);
+    toast.error('Failed to mute participant');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleKick = async (participantId) => {
     if (confirm('Are you sure you want to remove this participant from the meeting?')) {
