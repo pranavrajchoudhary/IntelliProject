@@ -39,4 +39,10 @@ router.post('/:roomId/participants/:participantId/kick', protect, meetingControl
 // Update whiteboard access (Host or Admin only)
 router.put('/:roomId/whiteboard-access', protect, meetingController.updateWhiteboardAccess);
 
+router.get('/upcoming', protect, meetingController.getUpcomingMeetingRooms);
+router.get('/active',  protect, meetingController.getActiveMeetingRooms);
+// Cancel scheduled meeting (Host or Admin only)
+router.delete('/:roomId/cancel', protect, meetingController.cancelMeetingRoom);
+
+
 module.exports = router;

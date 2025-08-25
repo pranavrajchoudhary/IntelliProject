@@ -114,12 +114,14 @@ export const meetingAPI = {
   // Meeting rooms
   createMeeting: (data) => api.post('/meetings', data),
   getActiveMeetings: () => api.get('/meetings/active'),
+  getUpcomingMeetings: () => api.get('/meetings/upcoming'),
   getMeetingHistory: (page = 1, limit = 10) => api.get(`/meetings/history?page=${page}&limit=${limit}`),
   
   // Room actions
   joinMeeting: (roomId) => api.post(`/meetings/${roomId}/join`),
   leaveMeeting: (roomId) => api.post(`/meetings/${roomId}/leave`),
   endMeeting: (roomId) => api.post(`/meetings/${roomId}/end`),
+  cancelMeeting: (roomId) => api.delete(`/meetings/${roomId}/cancel`),
   
   // Settings and controls
   updateSettings: (roomId, settings) => api.put(`/meetings/${roomId}/settings`, { settings }),

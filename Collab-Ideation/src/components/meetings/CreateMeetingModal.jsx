@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { X, Video, Users } from 'lucide-react';
 
 const CreateMeetingModal = ({ projects, onClose, onSubmit }) => {
+  const [startMode, setStartMode]   = useState('now');  // 'now' | 'later'
+  const [pickDate, setPickDate]     = useState(null);   // Date object
   const [formData, setFormData] = useState({
     title: '',
     projectId: ''
@@ -17,7 +19,12 @@ const CreateMeetingModal = ({ projects, onClose, onSubmit }) => {
 
     setLoading(true);
     try {
-      await onSubmit(formData);
+      await onSubmit({
+        title: formData.title,
+        projectId: formData.projectId,
+        scheduledStartTime: startMode === 'later' ? pickDate : null,
+      });
+
     } finally {
       setLoading(false);
     }
@@ -78,6 +85,38 @@ const CreateMeetingModal = ({ projects, onClose, onSubmit }) => {
               ))}
             </select>
           </div>
+              {/* Start-time selector */}
+              <div className="flex gap-4 mt-6 mb-6 text-sm">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    value="now"
+                    checked={startMode === 'now'}
+                    onChange={() => setStartMode('now')}
+                  />
+                  Start now
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    value="later"
+                    checked={startMode === 'later'}
+                    onChange={() => setStartMode('later')}
+                  />
+                  Schedule for later
+                </label>
+              </div>
+
+              {startMode === 'later' && (
+                <input
+                  type="datetime-local"
+                  required
+                  className="mt-2 mb-5 w-full border rounded px-3 py-2"
+                  value={pickDate ? pickDate.toISOString().slice(0, 16) : ''}
+                  onChange={(e) => setPickDate(new Date(e.target.value))}
+                  min={new Date().toISOString().slice(0, 16)}
+                />
+              )}
 
           <div className="flex justify-end space-x-3">
             <button

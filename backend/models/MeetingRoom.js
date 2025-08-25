@@ -8,9 +8,10 @@ const MeetingRoomSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ['active', 'ended'],
+      enum: ['scheduled', 'active', 'ended'],
       default: 'active',
     },
+    scheduledStartTime: { type: Date },
 
     participants: [
       {
@@ -54,5 +55,6 @@ const MeetingRoomSchema = new mongoose.Schema(
 // Index for efficient queries
 MeetingRoomSchema.index({ project: 1, status: 1 });
 MeetingRoomSchema.index({ host: 1, status: 1 });
+MeetingRoomSchema.index({ status: 1, scheduledStartTime: 1 });
 
 module.exports = mongoose.model('MeetingRoom', MeetingRoomSchema);

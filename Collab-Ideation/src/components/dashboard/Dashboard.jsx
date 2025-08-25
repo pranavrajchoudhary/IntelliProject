@@ -6,6 +6,10 @@ import { useAuth } from '../../context/AuthContext';
 import ProjectCard from '../projects/ProjectCard';
 import CreateProjectModal from '../projects/CreateProjectModal';
 import AIIdeaGenerator from '../ai/AIIdeaGenerator';
+import CreateMeetingModal from '../meetings/CreateMeetingModal';
+import toast from 'react-hot-toast';
+import { meetingAPI } from '../../services/api';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
   const [projects, setProjects] = useState([]);
@@ -17,6 +21,29 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const [refreshingTrends, setRefreshingTrends] = useState(false);
+  const [showCreateMeetingModal, setShowCreateMeetingModal] = useState(false);
+  const navigate = useNavigate();
+
+  const handleCreateMeeting = async (meetingData) => {
+  try {
+    const response = await meetingAPI.createMeeting(meetingData);
+    setShowCreateMeetingModal(false);
+    
+    if (response.data.status === 'scheduled') {
+      // Scheduled meeting -> go to meetings page
+      toast.success('Meeting scheduled successfully!');
+      navigate('/meetings');
+    } else {
+      // Active meeting -> join it directly
+      toast.success('Meeting started successfully!');
+      // navigate(`/meetings/${response.data._id}`);
+      navigate('/meetings');
+    }
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Failed to create meeting');
+  }
+};
+
 
   useEffect(() => {
     fetchDashboardData();
@@ -240,6 +267,7 @@ const Dashboard = () => {
           <motion.button
             whileHover={{ scale: 1.02 }}
             className="p-4 border border-gray-300 hover:border-black transition-colors text-left"
+            onClick={() => setShowCreateMeetingModal(true)}
           >
             <Calendar className="w-8 h-8 text-black mb-2" />
             <h3 className="font-bold">Schedule Meeting</h3>
@@ -329,6 +357,14 @@ const Dashboard = () => {
           }}
         />
       )}
+
+      {showCreateMeetingModal && (
+          <CreateMeetingModal
+            projects={projects}
+            onClose={() => setShowCreateMeetingModal(false)}
+            onSubmit={handleCreateMeeting}
+          />
+        )}
 
       {showAIGenerator && (
         <AIIdeaGenerator
