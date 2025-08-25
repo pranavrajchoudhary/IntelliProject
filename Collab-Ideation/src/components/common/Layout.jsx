@@ -62,7 +62,7 @@ const Layout = ({ children }) => {
         className="fixed inset-y-0 left-0 z-50 w-64 bg-white border-r-2 border-black lg:hidden"
       >
         <div className="flex items-center justify-between h-16 px-6 border-b-2 border-black">
-          <h2 className="text-xl font-bold">AI Collaborate</h2>
+          <h2 className="text-xl font-bold">IntelliProject</h2>
           <button onClick={() => setSidebarOpen(false)}>
             <X className="w-6 h-6" />
           </button>
@@ -73,7 +73,7 @@ const Layout = ({ children }) => {
       {/* Desktop sidebar */}
       <div className="hidden lg:block fixed inset-y-0 left-0 z-50 w-64 bg-white border-r-2 border-black">
         <div className="flex items-center h-16 px-6 border-b-2 border-black">
-          <h2 className="text-xl font-bold">AI Collaborate</h2>
+          <h2 className="text-xl font-bold">IntelliProject</h2>
         </div>
         <SidebarContent navigation={navigation} currentPath={location.pathname} />
       </div>

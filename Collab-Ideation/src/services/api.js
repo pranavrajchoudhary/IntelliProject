@@ -141,6 +141,11 @@ export const meetingAPI = {
   api.post(`/meetings/${roomId}/participants/${participantId}/kick`),
 };
 
+export const ideaAPI = {
+  saveIdea: (data) => api.post('/ideas', data),
+  getProjectIdeas: (projectId) => api.get(`/ideas/project/${projectId}`),
+  deleteIdea: (ideaId) => api.delete(`/ideas/${ideaId}`)
+};
 
 
 export default api;
