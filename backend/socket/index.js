@@ -63,10 +63,8 @@ function initSocket(io) {
     socket.on('stopTyping', (data) => {
       socket.to(data.roomId).emit('stopTyping', data);
     });
-
-    // Meeting-specific events
-
     
+// Meeting-specific events
 socket.on('joinMeeting', async (data) => {
   const { roomId, user } = data;
   socket.userData = { roomId, user };
@@ -115,7 +113,6 @@ socket.on('joinMeeting', async (data) => {
       if (targetSocket) {
         targetSocket.emit('offer', {
           offer: data.offer,
-          // CHANGE THIS LINE
           from: socket.userData.user._id, 
           roomId: data.roomId,
         });
@@ -133,7 +130,6 @@ socket.on('joinMeeting', async (data) => {
       if (targetSocket) {
         targetSocket.emit('answer', {
           answer: data.answer,
-          // CHANGE THIS LINE
           from: socket.userData.user._id,
           roomId: data.roomId,
         });
@@ -151,7 +147,6 @@ socket.on('joinMeeting', async (data) => {
       if (targetSocket) {
         targetSocket.emit('ice-candidate', {
           candidate: data.candidate,
-          // CHANGE THIS LINE
           from: socket.userData.user._id,
           roomId: data.roomId,
         });
@@ -217,9 +212,6 @@ socket.on('joinMeeting', async (data) => {
         });
       }
     });
-
-  // Enhanced whiteboard events with real-time collaboration
- // Store whiteboard state
 
 socket.on('joinWhiteboard', (data) => {
   const { meetingId, userId, userName } = data;

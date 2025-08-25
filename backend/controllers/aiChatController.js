@@ -173,7 +173,7 @@ Keep responses concise (max 150 words) and actionable.`;
 
 //3. Dashboard AI - Generate project ideas
 exports.generateProjectIdeas = asyncHandler(async (req, res) => {
-  console.log('💡 Project Ideas Request:', req.body); // Debug log
+  console.log('💡 Project Ideas Request:', req.body);
   const { topic, industry } = req.body;
 
   try {

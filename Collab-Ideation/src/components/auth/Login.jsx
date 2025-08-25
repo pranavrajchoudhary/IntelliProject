@@ -8,21 +8,21 @@ import toast from 'react-hot-toast';
 const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(''); // Add error state
+  const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError(''); // Clear previous errors
+    setError(''); // Clears previous errors
     
     try {
       await login(formData.email, formData.password);
       toast.success('Welcome back!');
       navigate('/');
     } catch (error) {
-      // Handle different error types
+      // Handles different error types
       if (error.response) {
         const { status, data } = error.response;
         
@@ -83,7 +83,7 @@ const Login = () => {
             <p className="text-gray-600 mt-2">Sign in to your account</p>
           </div>
 
-          {/* Error Alert - ADD THIS */}
+          {/* Error Alert */}
           {error && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}

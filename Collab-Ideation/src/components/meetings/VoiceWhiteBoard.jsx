@@ -35,7 +35,6 @@ const VoiceWhiteboard = ({ meetingId, canEdit = true, meeting, user }) => {
   }, []);
 
   // Handle snapshot updates (throttled to avoid spam)
-  // Handle snapshot updates (throttled to avoid spam)
 const sendSnapshot = useCallback(
   throttle(() => {
     if (!editorRef.current || !socket || !meetingId || isApplyingRemoteChange.current) {
@@ -44,7 +43,7 @@ const sendSnapshot = useCallback(
     try {
       const snapshot = TldrawComp.getSnapshot(editorRef.current.store);
       
-      // ✅ FIXED: Filter out session data to allow independent camera/page control
+      //Filter out session data to allow independent camera/page control
       const filteredSnapshot = {
         document: snapshot.document, // Keep shapes, pages, assets, etc.
         // Exclude session data (camera position, current page, selected shapes, etc.)
@@ -78,7 +77,7 @@ useEffect(() => {
     isApplyingRemoteChange.current = true;
     
     try {
-      // ✅ FIXED: Only apply document changes, preserve session state
+      //Only apply document changes, preserve session state
       const currentSnapshot = TldrawComp.getSnapshot(editorRef.current.store);
       
       const mergedSnapshot = {
@@ -110,7 +109,7 @@ useEffect(() => {
     isApplyingRemoteChange.current = true;
     
     try {
-      // ✅ FIXED: Only sync document, preserve user's session state
+      //Only sync document, preserve user's session state
       const currentSnapshot = TldrawComp.getSnapshot(editorRef.current.store);
       
       const mergedSnapshot = {
@@ -142,7 +141,7 @@ useEffect(() => {
     userName: user.name 
   });
 
-  // ✅ FIXED: Request sync after component is fully mounted
+  //Request sync after component is fully mounted
   const syncTimer = setTimeout(() => {
     console.log('Requesting whiteboard sync');
     socket.emit('requestWhiteboardSync', { meetingId });
@@ -181,7 +180,7 @@ useEffect(() => {
     };
   }, [socket, meetingId, tldrawLoaded, meeting, user]);
 
-  // ✅ FIXED: Remove sendSnapshot from dependencies and use ref pattern
+  //Remove sendSnapshot from dependencies and use ref pattern
 const sendSnapshotRef = useRef();
 sendSnapshotRef.current = sendSnapshot;
 
@@ -202,7 +201,7 @@ const onMount = useCallback((editor) => {
   });
   
   editor._disposeStoreListener = dispose;
-}, []); // ✅ Empty dependency array prevents re-creation
+}, []); //Empty dependency array prevents re-creation
 
 
   useEffect(() => {
@@ -214,7 +213,6 @@ const onMount = useCallback((editor) => {
   }, []);
 
   // Check permissions before rendering
-  // ✅ FIXED: Move this outside and memoize it
 const hasEditPermission = useCallback(() => {
   if (!canEdit) return false;
   if (!meeting?.settings) return true;

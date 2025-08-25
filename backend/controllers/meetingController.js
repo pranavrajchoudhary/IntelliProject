@@ -2,7 +2,6 @@ const MeetingRoom = require('../models/MeetingRoom');
 const Project = require('../models/Project');
 const asyncHandler = require('../utils/asyncHandler');
 
-// Create new meeting room
 exports.createMeetingRoom = asyncHandler(async (req, res) => {
   const { title, projectId } = req.body;
   const userId = req.user._id;
@@ -376,7 +375,7 @@ exports.muteAllParticipants = asyncHandler(async (req, res) => {
 
   // Mute all connected participants except the host
   room.participants.forEach(participant => {
-    if (participant.isConnected && participant.user.toString() !== userId.toString()) {
+    if (participant.isConnected && participant.user.toString() !== room.host.toString()) {
       participant.isMuted = true;
       participant.mutedBy = userId;
       participant.mutedAt = new Date();

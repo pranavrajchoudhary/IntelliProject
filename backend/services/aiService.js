@@ -19,7 +19,7 @@ async function generateText(prompt) {
       }
     });
 
-    // FIX: Access text from the first part in the array
+    // Access text from the first part in the array
     const text = response.candidates[0]?.content?.parts?.[0]?.text;
 
     if (!text) {
@@ -52,7 +52,7 @@ async function generateStructuredData(prompt) {
       }
     });
 
-    // FIX: Access text from the first part in the array
+    //Access text from the first part in the array
     const text = response.candidates[0]?.content?.parts?.[0]?.text;
 
     if (!text || text.trim() === '') {
@@ -62,7 +62,7 @@ async function generateStructuredData(prompt) {
     }
 
     try {
-      // Remove Markdown code block if present
+      //Removes Markdown code block if present
       const cleaned = text.replace(/```json\s*([\s\S]*?)```/, '$1').trim();
       return JSON.parse(cleaned);
     } catch (parseError) {
