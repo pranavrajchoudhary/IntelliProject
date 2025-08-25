@@ -9,7 +9,7 @@ const generateIdeas = async (req, res) => {
     let finalPrompt = '';
     let isProjectMode = false;
 
-    // If projectId is provided → add project context
+    //If projectId is provided → adds project context
     if (projectId) {
       const project = await Project.findById(projectId);
       if (!project) {
@@ -42,7 +42,7 @@ Return only a JSON array of exactly 5 ideas, no extra text or markdown.`;
 
       isProjectMode = true;
     } else {
-      // General idea generation
+      //General idea generation
       finalPrompt = `Generate 5 creative ideas for: ${prompt}
 
 For each idea, return exactly this JSON structure:
@@ -60,7 +60,7 @@ Return only a JSON array of exactly 5 ideas, no extra text or markdown.`;
 
     const ideasArray = await generateStructuredData(finalPrompt);
     
-    // Ensure we have an array
+    //Ensures we have an array
     if (!Array.isArray(ideasArray)) {
       throw new Error('AI did not return an array of ideas');
     }
@@ -68,7 +68,7 @@ Return only a JSON array of exactly 5 ideas, no extra text or markdown.`;
     let savedIdeas = [];
 
     if (isProjectMode) {
-      // Save ideas to database
+      //Saves ideas to database
       savedIdeas = await Idea.insertMany(
         ideasArray.map(idea => ({
           text: idea.Title,

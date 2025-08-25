@@ -133,7 +133,7 @@ const iceServers = {
 
 
 
-  // Simplified WebRTC setup
+  //WebRTC setup
 const createPeerConnection = useCallback((participantId) => {
   console.log('Creating peer connection for:', participantId);
   
@@ -237,17 +237,32 @@ const createPeerConnection = useCallback((participantId) => {
 
    const handleMuteAllParticipants = ({ mutedBy }) => {
   console.log(`All participants muted by ${mutedBy}`);
-  setParticipants(prev => prev.map(p => 
-    p.user._id !== user._id ? { 
-      ...p, 
-      isMuted: true, 
-      canUnmute: false, 
+setParticipants(prev =>
+  prev.map(p => {
+    // ── Host ──────────────────────────────────────────────
+    if (p.user._id === meeting?.host._id) {
+      return {
+        ...p,
+        // leave isMuted exactly as it was
+        canUnmute: true          // ✅ host can always un-mute
+      };
+    }
+    
+
+    // ── Everyone else ─────────────────────────────────────
+    return {
+      ...p,
+      isMuted: true,
+      canUnmute: false,
       mutedBy: user._id,
-      wasPreviouslyMuted: p.isMuted 
-    } : p
-  ));
+      wasPreviouslyMuted: p.isMuted
+    };
+  })
+);
+
+ if (isHost) setCanUnmute(true); 
   
-  // ✅ UPDATE THIS: Sync settings state
+  //Sync settings state
   setGlobalMuteSettings(prev => ({ ...prev, allowAllToSpeak: false, muteAllMembers: true }));
   setMeeting(prev => ({
     ...prev,
@@ -258,17 +273,17 @@ const createPeerConnection = useCallback((participantId) => {
     }
   }));
   
-  if (!isHost) {
-    setCanUnmute(false);
-    if (!isMuted) {
-      setIsMuted(true);
-      if (localStreamRef.current) {
-        localStreamRef.current.getAudioTracks().forEach(track => {
-          track.enabled = false;
-        });
-      }
-    }
-  }
+  // if (meeting?.host._id !== user._id) {
+  //   setCanUnmute(false);
+  //   if (!isMuted) {
+  //     setIsMuted(true);
+  //     if (localStreamRef.current) {
+  //       localStreamRef.current.getAudioTracks().forEach(track => {
+  //         track.enabled = false;
+  //       });
+  //     }
+  //   }
+  // }
   toast.success(`All participants muted by ${mutedBy}`);
 };
 
@@ -281,7 +296,7 @@ const handleUnmuteAllParticipants = ({ unmutedBy }) => {
     mutedAt: null
   })));
   
-  // ✅ UPDATE THIS: Sync settings state
+  //Sync settings state
   setGlobalMuteSettings(prev => ({ ...prev, allowAllToSpeak: true, muteAllMembers: false }));
   setMeeting(prev => ({
     ...prev,
@@ -298,8 +313,6 @@ const handleUnmuteAllParticipants = ({ unmutedBy }) => {
   toast.success(`Mic permissions restored by ${unmutedBy}`);
 };
 
-
-  // UPDATE your existing setupSocketListeners function to handle all mute events
 const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) => {
       console.log(`Participant ${participantId} ${muted ? 'muted' : 'unmuted'} by ${mutedBy}`);
       setParticipants(prev => prev.map(p => 
@@ -486,7 +499,13 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
   };
 
 const toggleMute = async () => {
-  if (isMuted && (!canUnmute || !globalMuteSettings.allowAllToSpeak)) {
+  if (
+  isMuted &&
+  (
+    !canUnmute ||                              // you’ve been individually locked
+    (!globalMuteSettings.allowAllToSpeak && !isHost) // global lock but NOT the host
+  )
+) {
     if (!canUnmute) {
       toast.error('You have been muted by the host and cannot unmute yourself');
     } else if (!globalMuteSettings.allowAllToSpeak) {
@@ -498,7 +517,7 @@ const toggleMute = async () => {
   const newMutedState = !isMuted;
   setIsMuted(newMutedState);
   
-  // ✅ ADD THIS: Update participants array to reflect own mute status
+  //Update participants array to reflect own mute status
   setParticipants(prev => prev.map(p => 
     p.user._id === user._id ? { ...p, isMuted: newMutedState } : p
   ));
@@ -512,7 +531,7 @@ const toggleMute = async () => {
   try {
     await meetingAPI.muteParticipant(roomId, user._id, newMutedState, true);
   } catch (error) {
-    // ✅ ADD THIS: Revert participants array on error
+    //Revert participants array on error
     setIsMuted(!newMutedState);
     setParticipants(prev => prev.map(p => 
       p.user._id === user._id ? { ...p, isMuted: !newMutedState } : p
@@ -730,10 +749,16 @@ const toggleMute = async () => {
           {/* Audio Controls */}
           <div className="bg-gray-800 border-t border-gray-700 p-3 sm:p-4 left-0 right-0 lg:relative">
             <div className="flex items-center justify-center gap-2 sm:gap-4 max-w-md mx-auto">
-            {/* Mute Button with Enhanced Logic */}
+            {/* Mute Button */}
       <button
         onClick={toggleMute}
-        disabled={isMuted && (!canUnmute || !globalMuteSettings.allowAllToSpeak)}
+        disabled={
+            isMuted &&
+            (
+              !canUnmute ||
+              (!globalMuteSettings.allowAllToSpeak && !isHost)
+            )
+          }
         className={`flex items-center justify-center w-12 h-12 rounded-full transition-colors ${
           isMuted
             ? 'bg-red-600 hover:bg-red-700 text-white'

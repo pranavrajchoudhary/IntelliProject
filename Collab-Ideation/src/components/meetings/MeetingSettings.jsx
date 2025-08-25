@@ -56,7 +56,7 @@ const handleSettingChange = (key, value) => {
   setHasUnsavedChanges(true);
 };
 
-// ✅ ADD THIS: New function to handle toggle and emit the corresponding action
+//New function to handle toggle and emit the corresponding action
 const handleAllowAllToSpeakToggle = async (value) => {
   try {
     setLoading(true);
@@ -194,7 +194,6 @@ const handleAllowAllToSpeakToggle = async (value) => {
             </div>
 
             {/* Allow All to Speak Toggle */}
-            {/* Replace the existing allowAllToSpeak toggle with this */}
             <div className="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
               <div className="flex items-center gap-3">
                 <Mic className="h-5 w-5 text-blue-400" />

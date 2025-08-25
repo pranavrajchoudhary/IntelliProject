@@ -112,7 +112,7 @@ const ParticipantsList = ({
   try {
     setLoading(true);
     await meetingAPI.muteAllParticipants(meeting._id);
-    // ✅ ADD THIS: Update meeting settings state to reflect the change
+    // Update meeting settings state to reflect the change
     if (meeting?.settings) {
       meeting.settings.allowAllToSpeak = false;
       meeting.settings.muteAllMembers = true;
@@ -130,7 +130,7 @@ const handleUnmuteAll = async () => {
   try {
     setLoading(true);
     await meetingAPI.unmuteAllParticipants(meeting._id);
-    // ✅ ADD THIS: Update meeting settings state to reflect the change
+    //Update meeting settings state to reflect the change
     if (meeting?.settings) {
       meeting.settings.allowAllToSpeak = true;
       meeting.settings.muteAllMembers = false;

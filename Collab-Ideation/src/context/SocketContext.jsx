@@ -9,7 +9,7 @@ export const SocketProvider = ({ children }) => {
   const { user, token } = useAuth();
 
   useEffect(() => {
-    // This effect is correct. It creates the connection when the user changes.
+    // This creates the connection when the user changes.
     if (user && token) {
       const newSocket = io(import.meta.env.VITE_SOCKET_URL, {
         auth: { token }
@@ -31,7 +31,7 @@ export const SocketProvider = ({ children }) => {
     }
   }, [user, token]);
 
-  // FIX #1: Memoize the functions with useCallback
+  //Memoize the functions with useCallback
   const joinRoom = useCallback((roomId) => {
     if (socket) {
       socket.emit('joinRoom', roomId, (response) => {
@@ -46,7 +46,7 @@ export const SocketProvider = ({ children }) => {
     }
   }, [socket]);
 
-  // FIX #2: Memoize the context value object with useMemo
+  //Memoize the context value object with useMemo
   const contextValue = useMemo(() => ({
     socket,
     joinRoom,

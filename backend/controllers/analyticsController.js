@@ -5,7 +5,7 @@ const User = require('../models/User');
 const StatSnapshot = require('../models/StatSnapshot');
 const asyncHandler = require('../utils/asyncHandler');
 
-// Get user's latest snapshot info
+//Gets user's latest snapshot info
 exports.getLatestSnapshot = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   
@@ -23,11 +23,11 @@ exports.getLatestSnapshot = asyncHandler(async (req, res) => {
   });
 });
 
-// Get current dashboard stats with trends for specific user
+//Gets current dashboard stats with trends for specific user
 exports.getDashboardStats = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   
-  // Get user's projects (where user is member)
+  //Gets user's projects (where user is member)
   const userProjects = await Project.find({ members: userId }).select('_id');
   const projectIds = userProjects.map(p => p._id);
 
@@ -43,7 +43,7 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
       .limit(10)
   ]);
 
-  // Get all users that are in user's projects (team members)
+  //Gets all users that are in user's projects (team members)
   const allProjectMembers = await Project.find({ members: userId })
     .populate('members', '_id')
     .then(projects => {
@@ -54,7 +54,7 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
       return memberIds.size;
     });
 
-  // Current stats for this user
+  //Current stats for this user
   const currentStats = {
     totalProjects,
     totalTasks,
@@ -62,7 +62,7 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
     teamMembers: allProjectMembers
   };
 
-  // Get latest snapshot for this user for trend calculation
+  //Gets latest snapshot for this user for trend calculation
   const latestSnapshot = await StatSnapshot.findOne({ user: userId }).sort({ date: -1 });
   
   let trends = {
@@ -99,7 +99,7 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
     };
   }
 
-  // Task completion over time (last 7 days)
+  //Task completion over time (last 7 days)
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -122,7 +122,7 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
     { $sort: { _id: 1 } }
   ]);
 
-  // Project progress
+  //Project progress
   const projectProgress = await Project.aggregate([
     { $match: { members: userId } },
     {
@@ -161,7 +161,7 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
   });
 });
 
-// Save daily snapshot for a specific user
+//Saves daily snapshot for a specific user
 exports.saveStatsSnapshot = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const { force = false } = req.query;
@@ -169,14 +169,14 @@ exports.saveStatsSnapshot = asyncHandler(async (req, res) => {
   today.setHours(0, 0, 0, 0);
 
 
-  // Check if snapshot already exists for today
+  //Checks if snapshot already exists for today
   if (!force) {
     const existingSnapshot = await StatSnapshot.findOne({ 
       user: userId, 
       date: today 
     });
     if (existingSnapshot) {
-      // Snapshot exists for today, just return current stats
+      //Snapshot exists for today, just return current stats
       return res.json({ 
         message: 'Snapshot already exists for today, returning current stats',
         snapshotExists: true,
@@ -185,7 +185,7 @@ exports.saveStatsSnapshot = asyncHandler(async (req, res) => {
       });
     }
   }
-  // Get user's projects
+  //Gets user's projects
   const userProjects = await Project.find({ members: userId }).select('_id');
   const projectIds = userProjects.map(p => p._id);
 
@@ -196,7 +196,7 @@ exports.saveStatsSnapshot = asyncHandler(async (req, res) => {
     Project.countDocuments({ members: userId })
   ]);
 
-  // Get team members count for this user's projects
+  //Gets team members count for this user's projects
   const allProjectMembers = await Project.find({ members: userId })
     .populate('members', '_id')
     .then(projects => {
@@ -214,7 +214,7 @@ exports.saveStatsSnapshot = asyncHandler(async (req, res) => {
     teamMembers: allProjectMembers
   };
 
-  // Get yesterday's snapshot for this user for trend calculation
+  //Gets yesterday's snapshot for this user for trend calculation
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
   const prevSnapshot = await StatSnapshot.findOne({ 
@@ -256,7 +256,7 @@ exports.saveStatsSnapshot = asyncHandler(async (req, res) => {
     };
   }
 
-  // Save or update snapshot for this user
+  //Saves or updates snapshot for this user
   await StatSnapshot.findOneAndUpdate(
     { user: userId, date: today },
     { stats: currentStats, trends },
@@ -272,7 +272,7 @@ exports.saveStatsSnapshot = asyncHandler(async (req, res) => {
   });
 });
 
-// Get historical trends for a specific user
+//Gets historical trends for a specific user
 exports.getHistoricalTrends = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const { days = 30 } = req.query;
@@ -303,7 +303,7 @@ exports.getProjectAnalytics = asyncHandler(async (req, res) => {
     done: tasks.filter(t => t.status === 'done').length
   };
 
-  // Task creation over time
+  //Task creation over time
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
