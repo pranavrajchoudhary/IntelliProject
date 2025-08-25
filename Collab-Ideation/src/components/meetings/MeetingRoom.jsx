@@ -237,16 +237,18 @@ const createPeerConnection = useCallback((participantId) => {
 
    const handleMuteAllParticipants = ({ mutedBy }) => {
   console.log(`All participants muted by ${mutedBy}`);
-setParticipants(prev =>
-  prev.map(p => {
-    // ── Host ──────────────────────────────────────────────
-    if (p.user._id === meeting?.host._id) {
-      return {
-        ...p,
-        // leave isMuted exactly as it was
-        canUnmute: true          // ✅ host can always un-mute
-      };
-    }
+  // Checks if current user should be muted (not the host)
+  const shouldMuteCurrentUser = meeting?.host._id !== user._id;
+  setParticipants(prev =>
+    prev.map(p => {
+      // ── Host ──────────────────────────────────────────────
+      if (p.user._id === meeting?.host._id) {
+        return {
+          ...p,
+          // leave isMuted exactly as it was
+          canUnmute: true    //host can always un-mute
+        };
+      }
     
 
     // ── Everyone else ─────────────────────────────────────
@@ -259,6 +261,18 @@ setParticipants(prev =>
     };
   })
 );
+
+if (shouldMuteCurrentUser && !isMuted) {
+    setIsMuted(true);
+    setCanUnmute(false);
+    
+    // Disable local audio tracks
+    if (localStreamRef.current) {
+      localStreamRef.current.getAudioTracks().forEach(track => {
+        track.enabled = false;
+      });
+    }
+  }
 
  if (isHost) setCanUnmute(true); 
   
@@ -437,27 +451,63 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
       // Get meeting data
       const response = await meetingAPI.joinMeeting(roomId);
       const meetingData = response.data;
+      
       setMeeting(meetingData);
       setParticipants(meetingData.participants);
-      setGlobalMuteSettings({
-          allowAllToSpeak: meetingData.settings?.allowAllToSpeak ?? true,
-          muteAllMembers: meetingData.settings?.muteAllMembers ?? false
-        });   
+      
+      // Set global mute settings from meeting data
+      const meetingSettings = {
+        allowAllToSpeak: meetingData.settings?.allowAllToSpeak ?? true,
+        muteAllMembers: meetingData.settings?.muteAllMembers ?? false
+      };
+      setGlobalMuteSettings(meetingSettings);
 
-      // Get user media with better error handling
+      // Find current user's participant data
+      const currentUserParticipant = meetingData.participants.find(
+        p => p.user._id === user._id
+      );
+      
+      // Check if user should be muted based on meeting settings
+      const isUserHost = meetingData.host._id === user._id;
+      const shouldBeMuted = !meetingSettings.allowAllToSpeak && !isUserHost;
+      const userCanUnmute = isUserHost ? true : 
+                           (currentUserParticipant?.canUnmute ?? meetingSettings.allowAllToSpeak);
+
+      // Set initial state based on meeting and user status
+      if (isUserHost) {
+        // Host always has full control
+        setCanUnmute(true);
+        setIsMuted(currentUserParticipant?.isMuted ?? false);
+      } else {
+        // Non-host follows meeting rules
+        setCanUnmute(userCanUnmute);
+        setIsMuted(shouldBeMuted || (currentUserParticipant?.isMuted ?? false));
+      }
+
+      // Get user media
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
+        const stream = await navigator.mediaDevices.getUserMedia({
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
             autoGainControl: true
-          }, 
-          video: false 
+          },
+          video: false
         });
         
         localStreamRef.current = stream;
         console.log('Local audio stream obtained successfully');
-        
+
+        // Set audio track state based on mute status
+        const shouldDisableAudio = shouldBeMuted || (currentUserParticipant?.isMuted ?? false);
+        stream.getAudioTracks().forEach(track => {
+          track.enabled = !shouldDisableAudio;
+        });
+
+        if (shouldBeMuted) {
+          console.log('User joined/refreshed during MuteAll - automatically muted');
+        }
+
         // Join via socket
         if (socket && socket.connected) {
           socket.emit('joinMeeting', { roomId, user });
@@ -467,7 +517,7 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
         console.error('Failed to get user media:', mediaError);
         toast.error('Failed to access microphone. Please check permissions.');
       }
-
+      
     } catch (error) {
       console.error('Failed to join meeting:', error);
       toast.error('Failed to join meeting');
@@ -478,6 +528,7 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
 
   initializeMeeting();
 }, [roomId, socket, user]);
+
 
 
   useEffect(() => {
@@ -605,6 +656,69 @@ const toggleMute = async () => {
       }
     }
   };
+
+  // Add these functions before the return statement in MeetingRoom component
+
+const onMuteParticipant = async (participantId, muted, canUnmute = true) => {
+  try {
+    await meetingAPI.muteParticipant(roomId, participantId, muted, canUnmute);
+    
+    // Update local participants state
+    setParticipants(prev => prev.map(p => 
+      p.user._id === participantId ? {
+        ...p,
+        isMuted: muted,
+        canUnmute: canUnmute,
+        mutedBy: muted ? user._id : undefined,
+        mutedAt: muted ? new Date() : undefined
+      } : p
+    ));
+    
+    // If it's the current user being muted/unmuted, update local state
+    if (participantId === user._id) {
+      setIsMuted(muted);
+      setCanUnmute(canUnmute);
+      
+      // Update audio tracks
+      if (localStreamRef.current) {
+        localStreamRef.current.getAudioTracks().forEach(track => {
+          track.enabled = !muted;
+        });
+      }
+    }
+    
+    toast.success(`Participant ${muted ? 'muted' : 'unmuted'} successfully`);
+  } catch (error) {
+    console.error('Failed to mute/unmute participant:', error);
+    toast.error(error.response?.data?.message || 'Failed to update participant status');
+  }
+};
+
+const onKickParticipant = async (participantId) => {
+  try {
+    await meetingAPI.kickParticipant(roomId, participantId);
+    
+    // Update local participants state
+    setParticipants(prev => prev.filter(p => p.user._id !== participantId));
+    
+    // Close peer connection if it exists
+    if (peerConnectionsRef.current[participantId]) {
+      peerConnectionsRef.current[participantId].close();
+      delete peerConnectionsRef.current[participantId];
+    }
+    
+    // Remove remote stream if it exists
+    if (remoteStreamsRef.current[participantId]) {
+      delete remoteStreamsRef.current[participantId];
+    }
+    
+    toast.success('Participant removed successfully');
+  } catch (error) {
+    console.error('Failed to kick participant:', error);
+    toast.error(error.response?.data?.message || 'Failed to remove participant');
+  }
+};
+
 
     if (loading) {
     return (
@@ -764,7 +878,7 @@ const toggleMute = async () => {
             ? 'bg-red-600 hover:bg-red-700 text-white'
             : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
         } ${
-          (isMuted && (!canUnmute || !globalMuteSettings.allowAllToSpeak)) 
+          (isMuted && (!canUnmute || !globalMuteSettings.allowAllToSpeak) && !isHost) 
             ? 'opacity-50 cursor-not-allowed' 
             : ''
         }`}
@@ -789,7 +903,7 @@ const toggleMute = async () => {
         </div>
       )}
       
-      {isMuted && !globalMuteSettings.allowAllToSpeak && canUnmute && (
+      {isMuted && !globalMuteSettings.allowAllToSpeak && canUnmute && !isHost &&(
         <div className="flex items-center space-x-1 text-orange-600 text-xs">
           <div className="w-2 h-2 bg-orange-600 rounded-full animate-pulse"></div>
           <span>Unmuting disabled</span>
@@ -850,20 +964,8 @@ const toggleMute = async () => {
               currentUser={user}
               meeting={meeting}
               canControl={canControl}
-              onMuteParticipant={async (participantId, muted, canUnmute) => {
-                try {
-                  await meetingAPI.muteParticipant(roomId, participantId, muted, canUnmute);
-                } catch (error) {
-                  throw error;
-                }
-              }}
-              onKickParticipant={async (participantId) => {
-                try {
-                  await meetingAPI.kickParticipant(roomId, participantId);
-                } catch (error) {
-                  throw error;
-                }
-              }}
+              onMuteParticipant={onMuteParticipant}
+              onKickParticipant={onKickParticipant}
             />
           </div>
         )}

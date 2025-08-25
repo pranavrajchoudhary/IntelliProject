@@ -151,6 +151,9 @@ exports.joinMeetingRoom = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'You are not a member of this project' });
   }
 
+  const isHost = room.host.toString() === userId.toString();
+  const shouldBeMuted = !room.settings.allowAllToSpeak && !isHost;
+
   // Find existing participant
   const existingParticipant = room.participants.find(
     p => p.user.toString() === userId.toString()
@@ -158,26 +161,44 @@ exports.joinMeetingRoom = asyncHandler(async (req, res) => {
 
   if (existingParticipant) {
     if (existingParticipant.isConnected) {
-      // Already connected - return the room data instead of error
       const updatedRoom = await MeetingRoom.findById(roomId)
         .populate('project', 'title')
         .populate('host', 'name email')
         .populate('participants.user', 'name email');
       return res.json(updatedRoom);
     } else {
-      // Previously disconnected, allow reconnection
+      // Reconnecting user - apply current meeting state
       existingParticipant.isConnected = true;
       existingParticipant.joinedAt = new Date();
       existingParticipant.leftAt = undefined;
+      
+      // Apply current mute settings for rejoining users
+      if (shouldBeMuted) {
+        existingParticipant.isMuted = true;
+        existingParticipant.canUnmute = false;
+        existingParticipant.mutedBy = room.host;
+        existingParticipant.mutedAt = new Date();
+      } else if (isHost) {
+        // Host always retains control
+        existingParticipant.canUnmute = true;
+      }
     }
   } else {
-    // New participant
-    room.participants.push({
+    // New participant - apply current meeting state
+    const participantData = {
       user: userId,
       joinedAt: new Date(),
       isConnected: true,
-      canUnmute: true
-    });
+      isMuted: shouldBeMuted,
+      canUnmute: isHost ? true : !shouldBeMuted
+    };
+
+    if (shouldBeMuted) {
+      participantData.mutedBy = room.host;
+      participantData.mutedAt = new Date();
+    }
+
+    room.participants.push(participantData);
   }
 
   await room.save();
@@ -191,13 +212,19 @@ exports.joinMeetingRoom = asyncHandler(async (req, res) => {
   const io = req.app.get('io');
   if (io) {
     io.to(`meeting-${roomId}`).emit('participantJoined', {
-      participant: { user: req.user, joinedAt: new Date() },
+      participant: { 
+        user: req.user, 
+        joinedAt: new Date(),
+        isMuted: shouldBeMuted,
+        canUnmute: isHost ? true : !shouldBeMuted
+      },
       room: updatedRoom
     });
   }
 
   res.json(updatedRoom);
 });
+
 
 // Leave meeting room
 exports.leaveMeetingRoom = asyncHandler(async (req, res) => {
