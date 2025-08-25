@@ -17,6 +17,8 @@ import toast from 'react-hot-toast';
 import CreateMeetingModal from './CreateMeetingModal';
 import ActiveMeetingCard from './ActiveMeetingCard';
 import MeetingHistoryCard from './MeetingHistoryCard';
+import { useSocket } from '../../context/SocketContext';
+import UpcomingMeetingCard from './UpcomingMeetingCard';
 
 const MeetingsPage = () => {
   const [activeMeetings, setActiveMeetings] = useState([]);
@@ -25,23 +27,41 @@ const MeetingsPage = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeTab, setActiveTab] = useState('active');
   const [loading, setLoading] = useState(true);
+  const [upcomingMeetings, setUpcomingMeetings] = useState([]);
   
   const { user } = useAuth();
+  const { socket } = useSocket();
 
   useEffect(() => {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (!socket) return;
+
+  const handleMeetingStarted = (room) => {
+    setUpcomingMeetings(prev => prev.filter(m => m._id !== room._id));
+    setActiveMeetings(prev => [room, ...prev]);
+    toast.success(`${room.title} has started!`);
+  };
+
+  socket.on('meetingRoomStarted', handleMeetingStarted);
+  return () => socket.off('meetingRoomStarted', handleMeetingStarted);
+}, [socket]);
+
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [meetingsRes, historyRes, projectsRes] = await Promise.all([
+      const [meetingsRes, upcomingRes, historyRes, projectsRes] = await Promise.all([
         meetingAPI.getActiveMeetings(),
+        meetingAPI.getUpcomingMeetings(), 
         meetingAPI.getMeetingHistory(),
         projectAPI.getProjects()
       ]);
       
       setActiveMeetings(meetingsRes.data);
+      setUpcomingMeetings(upcomingRes.data);
       setMeetingHistory(historyRes.data.meetings);
       setProjects(projectsRes.data);
     } catch (error) {
@@ -55,7 +75,11 @@ const MeetingsPage = () => {
   const handleCreateMeeting = async (meetingData) => {
     try {
       const response = await meetingAPI.createMeeting(meetingData);
+      if (response.data.status === 'scheduled') {
+      setUpcomingMeetings(prev => [response.data, ...prev]);
+    } else {
       setActiveMeetings(prev => [response.data, ...prev]);
+    }
       setShowCreateModal(false);
       toast.success('Meeting room created successfully!');
     } catch (error) {
@@ -64,6 +88,10 @@ const MeetingsPage = () => {
   };
 
   const canCreateMeeting = user?.role === 'admin' || user?.role === 'pm';
+
+  const handleCancelMeeting = (meetingId) => {
+  setUpcomingMeetings(prev => prev.filter(m => m._id !== meetingId));
+};
 
   if (loading) {
     return (
@@ -165,6 +193,16 @@ const MeetingsPage = () => {
               Active Meetings ({activeMeetings.length})
             </button>
             <button
+              onClick={() => setActiveTab('upcoming')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'upcoming'
+                  ? 'border-black text-black'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Upcoming Meetings ({upcomingMeetings.length})
+            </button>
+            <button
               onClick={() => setActiveTab('history')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'history'
@@ -178,7 +216,7 @@ const MeetingsPage = () => {
         </div>
 
         {/* Content */}
-        {activeTab === 'active' ? (
+        {activeTab === 'active' && (
           <div className="space-y-4">
             {activeMeetings.length === 0 ? (
               <div className="text-center py-12">
@@ -204,7 +242,21 @@ const MeetingsPage = () => {
               ))
             )}
           </div>
-        ) : (
+        )} 
+        
+        {activeTab === 'upcoming' && (
+          <div className="grid gap-4">
+            {upcomingMeetings.length > 0 ? (
+              upcomingMeetings.map(meeting => (
+                <UpcomingMeetingCard key={meeting._id} meeting={meeting} onUpdate={fetchData} onCancel={handleCancelMeeting}/>
+              ))
+            ) : (
+              <p className="text-gray-500 text-center py-8">No upcoming meetings</p>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'history' && (
           <div className="space-y-4">
             {meetingHistory.length === 0 ? (
               <div className="text-center py-12">

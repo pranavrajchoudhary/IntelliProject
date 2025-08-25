@@ -3,9 +3,9 @@ const Project = require('../models/Project');
 const asyncHandler = require('../utils/asyncHandler');
 
 exports.createMeetingRoom = asyncHandler(async (req, res) => {
-  const { title, projectId } = req.body;
+  const { title, projectId, scheduledStartTime } = req.body;
   const userId = req.user._id;
-
+  const isScheduled = scheduledStartTime && new Date(scheduledStartTime) > Date.now();
   // Check if user can host meetings for this project
   const project = await Project.findById(projectId);
   if (!project) {
@@ -23,7 +23,10 @@ exports.createMeetingRoom = asyncHandler(async (req, res) => {
     title,
     project: projectId,
     host: userId,
-    participants: [{
+    status: isScheduled ? 'scheduled' : 'active',
+    scheduledStartTime: isScheduled ? scheduledStartTime : undefined,
+    startedAt: isScheduled ? undefined : Date.now(),
+    participants: isScheduled ? [] : [{
       user: userId,
       joinedAt: new Date(),
       isConnected: true,
@@ -44,6 +47,65 @@ exports.createMeetingRoom = asyncHandler(async (req, res) => {
 
   res.status(201).json(populatedRoom);
 });
+
+exports.getUpcomingMeetingRooms = asyncHandler(async (req, res) => {
+  let query = { status: 'scheduled' };
+
+  // Admin sees all scheduled rooms
+  if (req.user.role !== 'admin') {
+    // Get user's projects
+    const userProjects = await Project.find({
+      members: req.user._id
+    }).select('_id');
+    query.project = { $in: userProjects.map(p => p._id) };
+  }
+
+  const rooms = await MeetingRoom.find(query)
+    .populate('project', 'title')
+    .populate('host', 'name')
+    .sort({ scheduledStartTime: 1 });
+
+  res.json(rooms);
+});
+
+// Cancel scheduled meeting (only host or admin)
+exports.cancelMeetingRoom = asyncHandler(async (req, res) => {
+  const { roomId } = req.params;
+  const userId = req.user._id;
+
+  const room = await MeetingRoom.findById(roomId);
+
+  if (!room) {
+    return res.status(404).json({ message: 'Meeting not found' });
+  }
+
+  if (room.status !== 'scheduled') {
+    return res.status(400).json({ message: 'Only scheduled meetings can be cancelled' });
+  }
+
+  // Check permissions - only host or admin can cancel
+  const canCancel = req.user.role === 'admin' || room.host.toString() === userId.toString();
+  if (!canCancel) {
+    return res.status(403).json({ message: 'Only the host or admin can cancel the meeting' });
+  }
+
+  // Delete the meeting entirely (or you could set status to 'cancelled')
+  await MeetingRoom.findByIdAndDelete(roomId);
+
+  // Emit cancellation event to project members
+  const io = req.app.get('io');
+  if (io) {
+    io.to(`project-${room.project}`).emit('meetingRoomCancelled', {
+      roomId,
+      title: room.title,
+      cancelledBy: req.user.name
+    });
+  }
+
+  res.json({ message: 'Meeting cancelled successfully' });
+});
+
+
 
 // Get active meeting rooms (filtered by user permissions)
 exports.getActiveMeetingRooms = asyncHandler(async (req, res) => {
