@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Lightbulb, Loader2, Sparkles } from 'lucide-react';
-import { aiAPI } from '../../services/api';
+import { X, Lightbulb, Loader2, Sparkles, Save, Check } from 'lucide-react';
+import { aiAPI, ideaAPI } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 
 const AIIdeaGenerator = ({ onClose, projectId, projectTitle }) => {
   const [prompt, setPrompt] = useState('');
   const [ideas, setIdeas] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [savingIdea, setSavingIdea] = useState(null);
+  const { user } = useAuth();
 
   const handleGenerate = async () => {
   if (!prompt.trim()) {
@@ -33,6 +36,60 @@ const AIIdeaGenerator = ({ onClose, projectId, projectTitle }) => {
     setLoading(false);
   }
 };
+
+const handleSaveIdea = async (idea, index) => {
+  if (!projectId) return;
+  
+  // Validate required fields before saving
+  if (!prompt.trim()) {
+    toast.error('Cannot save idea: No prompt provided');
+    return;
+  }
+  
+  const ideaTitle = idea.text || idea.Title;
+  if (!ideaTitle || !ideaTitle.trim()) {
+    toast.error('Cannot save idea: Title is missing');
+    return;
+  }
+  
+  setSavingIdea(index);
+  
+  try {
+    const ideaData = {
+      title: ideaTitle.trim(),  // ✅ Ensure title is not empty
+      description: (idea.description || idea.ShortDescription || '').trim(),
+      category: idea.category || idea.Category || 'General',
+      priority: idea.priority || idea.Priority || 'Medium',
+      feasibility: idea.feasibility || idea.Feasibility || 5,
+      tags: typeof idea.tags === 'string' 
+        ? idea.tags.split(',').map(t => t.trim()).filter(t => t.length > 0)
+        : (idea.Tags ? idea.Tags.split(',').map(t => t.trim()).filter(t => t.length > 0) : []),
+      prompt: prompt.trim(),  // ✅ Ensure prompt is not empty
+      projectId: projectId
+    };
+    
+    // Double-check before API call
+    if (!ideaData.title || !ideaData.prompt) {
+      throw new Error('Missing required fields');
+    }
+    
+    await ideaAPI.saveIdea(ideaData);
+    
+    // Update the idea as saved
+    setIdeas(prev => prev.map((item, i) => 
+      i === index ? { ...item, saved: true } : item
+    ));
+    
+    toast.success('Idea saved successfully!');
+  } catch (error) {
+    console.error('Save Error:', error);
+    toast.error(error.response?.data?.message || 'Failed to save idea');
+  } finally {
+    setSavingIdea(null);
+  }
+};
+
+
 
 
   const getPriorityColor = (priority) => {
@@ -120,6 +177,7 @@ const AIIdeaGenerator = ({ onClose, projectId, projectTitle }) => {
                       <span className={`px-2 py-1 rounded-full text-white ${getPriorityColor(idea.priority || idea.Priority)}`}>
                         {idea.priority || idea.Priority}
                       </span>
+                      
                       {(idea.feasibility || idea.Feasibility) && (
                         <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
                           Feasibility: {idea.feasibility || idea.Feasibility}/10
@@ -131,7 +189,27 @@ const AIIdeaGenerator = ({ onClose, projectId, projectTitle }) => {
                   <p className="text-gray-600 text-sm mb-2">
                     {idea.description || idea.ShortDescription}
                   </p>
-                  
+                  {projectId && (
+                               <button
+                          onClick={() => handleSaveIdea(idea, index)}
+                          disabled={savingIdea === index || idea.saved}
+                          className={`px-3 my-3 py-1 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${
+                            idea.saved 
+                              ? 'bg-green-100 text-green-700 cursor-not-allowed'
+                              : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                          }`}
+                        >
+                          {savingIdea === index ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : idea.saved ? (
+                            <Check className="w-3 h-3" />
+                          ) : (
+                            <Save className="w-3 h-3" />
+                          )}
+                          {idea.saved ? 'Saved' : 'Save'}
+                        </button>
+                        )}
+
                   {(idea.category || idea.Category) && (
                     <span className="inline-block px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs">
                       {idea.category || idea.Category}

@@ -69,18 +69,7 @@ Return only a JSON array of exactly 5 ideas, no extra text or markdown.`;
 
     if (isProjectMode) {
       //Saves ideas to database
-      savedIdeas = await Idea.insertMany(
-        ideasArray.map(idea => ({
-          text: idea.Title,
-          description: idea.ShortDescription,
-          category: idea.Category,
-          priority: idea.Priority,
-          feasibility: idea.Feasibility,
-          tags: idea.Tags ? idea.Tags.split(",").map(t => t.trim()) : [],
-          project: projectId,
-          createdBy: req.user.id
-        }))
-      );
+      savedIdeas = ideasArray;
     }
 
     res.status(201).json({

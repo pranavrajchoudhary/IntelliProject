@@ -10,6 +10,7 @@ import AIIdeaGenerator from '../ai/AIIdeaGenerator';
 import Chat from '../chat/Chat';
 import EditTaskModal from '../tasks/EditTaskModal';
 import { useAuth } from '../../context/AuthContext';
+import SavedIdeasModal from '../ideas/SavedIdeasModal';
 
 const ProjectDetail = ({ id: propId }) => {
   const params = useParams();
@@ -22,6 +23,7 @@ const ProjectDetail = ({ id: propId }) => {
   const [showChat, setShowChat] = useState(false);
   const [activeColumn, setActiveColumn] = useState('');
   const [editingTask, setEditingTask] = useState(null);
+  const [showSavedIdeas, setShowSavedIdeas] = useState(false);
   const { user } = useAuth();
 
 
@@ -173,6 +175,15 @@ const handleTaskUpdated = (updatedTask) => {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
+            onClick={() => setShowSavedIdeas(true)}
+            className="flex items-center space-x-2 px-4 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors"
+          >
+          <Plus className="w-4 h-4 mr-2" />
+            Saved Ideas
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => setShowAIGenerator(true)}
             className="flex items-center space-x-2 px-4 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors"
           >
@@ -306,6 +317,14 @@ const handleTaskUpdated = (updatedTask) => {
         <AIIdeaGenerator
           projectId={id}
           onClose={() => setShowAIGenerator(false)}
+        />
+      )}
+
+      {showSavedIdeas && (
+        <SavedIdeasModal
+          onClose={() => setShowSavedIdeas(false)}
+          projectId={id}
+          project={project}
         />
       )}
 
