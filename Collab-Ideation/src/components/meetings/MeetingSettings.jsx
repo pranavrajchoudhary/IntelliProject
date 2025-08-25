@@ -40,10 +40,45 @@ const MeetingSettings = ({ meeting, onUpdateSettings, onClose }) => {
     }
   };
 
-  const handleSettingChange = (key, value) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
-    setHasUnsavedChanges(true);
-  };
+const handleSettingChange = (key, value) => {
+  setSettings(prev => {
+    const newSettings = { ...prev, [key]: value };
+    
+    // Handle allowAllToSpeak logic
+    if (key === 'allowAllToSpeak') {
+      newSettings.muteAllMembers = !value;
+    } else if (key === 'muteAllMembers') {
+      newSettings.allowAllToSpeak = !value;
+    }
+    
+    return newSettings;
+  });
+  setHasUnsavedChanges(true);
+};
+
+// ✅ ADD THIS: New function to handle toggle and emit the corresponding action
+const handleAllowAllToSpeakToggle = async (value) => {
+  try {
+    setLoading(true);
+    
+    if (!value) {
+      // Turning OFF allowAllToSpeak = Mute All
+      await meetingAPI.muteAllParticipants(meeting._id);
+    } else {
+      // Turning ON allowAllToSpeak = Restore Permissions  
+      await meetingAPI.unmuteAllParticipants(meeting._id);
+    }
+    
+    handleSettingChange('allowAllToSpeak', value);
+    setHasUnsavedChanges(false); // Auto-save this setting
+    
+  } catch (error) {
+    console.error('Failed to update participant permissions:', error);
+    toast.error('Failed to update participant permissions');
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Save all settings at once
   const handleSaveAllSettings = async () => {
@@ -159,15 +194,20 @@ const MeetingSettings = ({ meeting, onUpdateSettings, onClose }) => {
             </div>
 
             {/* Allow All to Speak Toggle */}
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div>
-                <p className="font-medium text-gray-800">Allow All to Speak</p>
-                <p className="text-sm text-gray-600">Let participants unmute themselves</p>
+            {/* Replace the existing allowAllToSpeak toggle with this */}
+            <div className="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
+              <div className="flex items-center gap-3">
+                <Mic className="h-5 w-5 text-blue-400" />
+                <div>
+                  <h4 className="font-medium">Allow All to Speak</h4>
+                  <p className="text-sm text-gray-400">Let participants unmute themselves</p>
+                </div>
               </div>
               <button
-                onClick={() => handleSettingChange('allowAllToSpeak', !settings.allowAllToSpeak)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  settings.allowAllToSpeak ? 'bg-blue-600' : 'bg-gray-200'
+                onClick={() => handleAllowAllToSpeakToggle(!settings.allowAllToSpeak)}
+                disabled={loading}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 ${
+                  settings.allowAllToSpeak ? 'bg-blue-600' : 'bg-gray-600'
                 }`}
               >
                 <span

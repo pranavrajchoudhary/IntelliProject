@@ -17,7 +17,8 @@ import {
   Share2,
   Clock,
   Crown,
-  AlertCircle
+  AlertCircle,
+  X,
 } from 'lucide-react';
 import { meetingAPI } from '../../services/api';
 import { useSocket } from '../../context/SocketContext';
@@ -52,10 +53,18 @@ const MeetingRoom = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
 
+  const isHost = meeting?.host._id === user._id;
+  const canControl = user.role === 'admin' || isHost;
+
   const [globalMuteSettings, setGlobalMuteSettings] = useState({
   allowAllToSpeak: true,
   muteAllMembers: false
 });
+
+// Kick/End meeting modal states
+  const [showKickModal, setShowKickModal] = useState(false);
+  const [showEndModal, setShowEndModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
 
 
   // WebRTC refs
@@ -123,7 +132,6 @@ const iceServers = {
  }, [socket, waitForSocketConnected]);
 
 
-  // ***** CORRECTED ORDER STARTS HERE *****
 
   // Simplified WebRTC setup
 const createPeerConnection = useCallback((participantId) => {
@@ -203,86 +211,113 @@ const createPeerConnection = useCallback((participantId) => {
       toast.success(`${participant.user.name} joined the meeting`);
     };
     
-    const handleParticipantLeft = ({ userId, userName }) => {
-      console.log('Participant left:', userName);
-      setParticipants(prev => prev.filter(p => p.user._id !== userId));
-      if (peerConnectionsRef.current[userId]) {
-        peerConnectionsRef.current[userId].close();
-        delete peerConnectionsRef.current[userId];
-      }
-      if (remoteStreamsRef.current[userId]) {
-        delete remoteStreamsRef.current[userId];
-      }
-      toast.success(`${userName || 'A participant'} left the meeting`);
-    };
+    const handleParticipantLeft = ({ userId, userName, wasKicked, kickedBy }) => {
+  console.log('Participant left:', userName);
+  setParticipants(prev => prev.filter(p => p.user._id !== userId));
+  if (peerConnectionsRef.current[userId]) {
+    peerConnectionsRef.current[userId].close();
+    delete peerConnectionsRef.current[userId];
+  }
+  if (remoteStreamsRef.current[userId]) {
+    delete remoteStreamsRef.current[userId];
+  }
+  if (wasKicked && kickedBy) {
+    toast.success(`${userName} was removed by ${kickedBy}`);
+  } else {
+    toast.success(`${userName || 'A participant'} left the meeting`);
+  }
+};
 
-    const handleMuteAllParticipants = ({ mutedBy }) => {
+
+    const handleParticipantKicked = ({ kickedBy, message }) => {
+      setModalMessage(message);
+      setShowKickModal(true);
+    };
+    
+
+   const handleMuteAllParticipants = ({ mutedBy }) => {
   console.log(`All participants muted by ${mutedBy}`);
-  
   setParticipants(prev => prev.map(p => 
-    p.user._id !== user._id ? { ...p, isMuted: true, canUnmute: false, mutedBy: user._id } : p
+    p.user._id !== user._id ? { 
+      ...p, 
+      isMuted: true, 
+      canUnmute: false, 
+      mutedBy: user._id,
+      wasPreviouslyMuted: p.isMuted 
+    } : p
   ));
   
-  setGlobalMuteSettings(prev => ({ ...prev, muteAllMembers: true }));
+  // ✅ UPDATE THIS: Sync settings state
+  setGlobalMuteSettings(prev => ({ ...prev, allowAllToSpeak: false, muteAllMembers: true }));
+  setMeeting(prev => ({
+    ...prev,
+    settings: {
+      ...prev.settings,
+      allowAllToSpeak: false,
+      muteAllMembers: true
+    }
+  }));
   
-  // If current user is not the host, mute them
   if (!isHost) {
-    setIsMuted(true);
     setCanUnmute(false);
-    if (localStreamRef.current) {
-      localStreamRef.current.getAudioTracks().forEach(track => {
-        track.enabled = false;
-      });
+    if (!isMuted) {
+      setIsMuted(true);
+      if (localStreamRef.current) {
+        localStreamRef.current.getAudioTracks().forEach(track => {
+          track.enabled = false;
+        });
+      }
     }
   }
-  
   toast.success(`All participants muted by ${mutedBy}`);
 };
 
-  const handleUnmuteAllParticipants = ({ unmutedBy }) => {
+const handleUnmuteAllParticipants = ({ unmutedBy }) => {
   console.log(`All participants unmuted by ${unmutedBy}`);
-  
   setParticipants(prev => prev.map(p => ({
-    ...p, 
-    isMuted: false, 
+    ...p,
     canUnmute: true,
     mutedBy: null,
     mutedAt: null
   })));
   
-  setGlobalMuteSettings(prev => ({ ...prev, muteAllMembers: false }));
+  // ✅ UPDATE THIS: Sync settings state
+  setGlobalMuteSettings(prev => ({ ...prev, allowAllToSpeak: true, muteAllMembers: false }));
+  setMeeting(prev => ({
+    ...prev,
+    settings: {
+      ...prev.settings,
+      allowAllToSpeak: true,
+      muteAllMembers: false
+    }
+  }));
   
   if (!isHost) {
-    setIsMuted(false);
     setCanUnmute(true);
   }
-  
-  toast.success(`All participants unmuted by ${unmutedBy}`);
+  toast.success(`Mic permissions restored by ${unmutedBy}`);
 };
+
 
   // UPDATE your existing setupSocketListeners function to handle all mute events
 const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) => {
-  console.log(`Participant ${participantId} ${muted ? 'muted' : 'unmuted'} by ${mutedBy}`);
-  
-  setParticipants(prev => prev.map(p => 
-    p.user._id === participantId 
-      ? { ...p, isMuted: muted, canUnmute, mutedBy, mutedAt: muted ? new Date() : null }
-      : p
-  ));
-  
-  // Update your own mute state if it's you
-  if (participantId === user._id) {
-    setIsMuted(muted);
-    setCanUnmute(canUnmute);
-    
-    // Update audio track
-    if (localStreamRef.current) {
-      localStreamRef.current.getAudioTracks().forEach(track => {
-        track.enabled = !muted;
-      });
-    }
-  }
-};
+      console.log(`Participant ${participantId} ${muted ? 'muted' : 'unmuted'} by ${mutedBy}`);
+      setParticipants(prev => prev.map(p => 
+        p.user._id === participantId ? { 
+          ...p, 
+          isMuted: p.user._id === user._id ? p.isMuted : muted, // Don't force change for current user
+          canUnmute, 
+          mutedBy, 
+          mutedAt: muted ? new Date() : null 
+        } : p
+      ));
+
+      if (participantId === user._id) {
+        setCanUnmute(canUnmute);
+        // Don't force mute/unmute the user - let them control it
+      }
+    };
+
 
   const handleWhiteboardAccessUpdated = ({ access, allowedUsers, updatedBy }) => {
     console.log(`Whiteboard access updated to ${access} by ${updatedBy}`);
@@ -298,26 +333,21 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
   };
 
   const handleSettingsUpdated = ({ settings, updatedBy }) => {
-  console.log(`Meeting settings updated by ${updatedBy}`);
-  
-  setMeeting(prev => ({
-    ...prev,
-    settings: { ...prev.settings, ...settings }
-  }));
-  
-  setGlobalMuteSettings(prev => ({
-    ...prev,
-    allowAllToSpeak: settings.allowAllToSpeak ?? prev.allowAllToSpeak,
-    muteAllMembers: settings.muteAllMembers ?? prev.muteAllMembers
-  }));
-  
-  // If allowAllToSpeak is disabled, participants can't unmute themselves
-  if (settings.allowAllToSpeak === false && !isHost) {
-    setCanUnmute(false);
-  }
-  
-  toast.success(`Meeting settings updated by ${updatedBy}`);
-};
+      console.log(`Meeting settings updated by ${updatedBy}`);
+      setMeeting(prev => ({ ...prev, settings: { ...prev.settings, ...settings } }));
+      setGlobalMuteSettings(prev => ({
+        ...prev,
+        allowAllToSpeak: settings.allowAllToSpeak ?? prev.allowAllToSpeak,
+        muteAllMembers: settings.muteAllMembers ?? prev.muteAllMembers
+      }));
+
+      if (settings.allowAllToSpeak === false && !isHost) {
+        setCanUnmute(false);
+      } else if (settings.allowAllToSpeak === true && !isHost) {
+        setCanUnmute(true);
+      }
+      toast.success(`Meeting settings updated by ${updatedBy}`);
+    };
 
     const handleOffer = async ({ offer, from }) => {
       console.log('Received offer from', from);
@@ -351,13 +381,14 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
     };
     
     const handleMeetingEnded = ({ endedBy }) => {
-      toast.success(`Meeting ended by ${endedBy}`);
-      navigate('/meetings');
+      setModalMessage(`Meeting ended by ${endedBy}`);
+      setShowEndModal(true);
     };
 
     // Attach listeners
     socket.on('participantJoined', handleParticipantJoined);
     socket.on('participantLeft', handleParticipantLeft);
+    socket.on('participantKicked', handleParticipantKicked);
     socket.on('offer', handleOffer);
     socket.on('answer', handleAnswer);
     socket.on('ice-candidate', handleIceCandidate);
@@ -372,6 +403,7 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
     return () => {
       socket.off('participantJoined', handleParticipantJoined);
       socket.off('participantLeft', handleParticipantLeft);
+      socket.off('participantKicked', handleParticipantKicked);
       socket.off('offer', handleOffer);
       socket.off('answer', handleAnswer);
       socket.off('ice-candidate', handleIceCandidate);
@@ -382,7 +414,7 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
       socket.off('settingsUpdated', handleSettingsUpdated);
       socket.off('participantMuted', handleParticipantMuted);
     };
-  }, [socket, user, roomId, createPeerConnection, navigate]);
+  }, [socket, user, roomId, createPeerConnection, navigate, isHost, isMuted]);
 
   useEffect(() => {
   const initializeMeeting = async () => {
@@ -394,6 +426,10 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
       const meetingData = response.data;
       setMeeting(meetingData);
       setParticipants(meetingData.participants);
+      setGlobalMuteSettings({
+          allowAllToSpeak: meetingData.settings?.allowAllToSpeak ?? true,
+          muteAllMembers: meetingData.settings?.muteAllMembers ?? false
+        });   
 
       // Get user media with better error handling
       try {
@@ -449,8 +485,7 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
     }
   };
 
-  const toggleMute = async () => {
-  // Check if user can unmute themselves
+const toggleMute = async () => {
   if (isMuted && (!canUnmute || !globalMuteSettings.allowAllToSpeak)) {
     if (!canUnmute) {
       toast.error('You have been muted by the host and cannot unmute yourself');
@@ -461,9 +496,13 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
   }
 
   const newMutedState = !isMuted;
-  
-  // Optimistically update UI
   setIsMuted(newMutedState);
+  
+  // ✅ ADD THIS: Update participants array to reflect own mute status
+  setParticipants(prev => prev.map(p => 
+    p.user._id === user._id ? { ...p, isMuted: newMutedState } : p
+  ));
+  
   if (localStreamRef.current) {
     localStreamRef.current.getAudioTracks().forEach(track => {
       track.enabled = !newMutedState;
@@ -473,8 +512,11 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
   try {
     await meetingAPI.muteParticipant(roomId, user._id, newMutedState, true);
   } catch (error) {
-    // Revert on error
+    // ✅ ADD THIS: Revert participants array on error
     setIsMuted(!newMutedState);
+    setParticipants(prev => prev.map(p => 
+      p.user._id === user._id ? { ...p, isMuted: !newMutedState } : p
+    ));
     if (localStreamRef.current) {
       localStreamRef.current.getAudioTracks().forEach(track => {
         track.enabled = newMutedState;
@@ -483,6 +525,7 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
     toast.error(error.response?.data?.message || 'Failed to update mute status');
   }
 };
+
 
 
   const leaveMeeting = async () => {
@@ -497,8 +540,11 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
     }
   };
 
-  const isHost = meeting?.host._id === user._id;
-  const canControl = user.role === 'admin' || isHost;
+  const handleModalOk = () => {
+    setShowKickModal(false);
+    setShowEndModal(false);
+    navigate('/meetings');
+  };
 
   const canEditWhiteboard = () => {
     if (!meeting?.settings) return true;
@@ -512,16 +558,6 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white">Joining meeting...</p>
-        </div>
-      </div>
-    );
-  }
   const toggleDeafen = () => {
     const newDeafenedState = !isDeafened;
     setIsDeafened(newDeafenedState);
@@ -551,23 +587,12 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
     }
   };
 
-  const formatDuration = () => {
-    if (!meeting?.startedAt) return '0:00';
-    const now = new Date();
-    const start = new Date(meeting.startedAt);
-    const diff = Math.floor((now - start) / 1000);
-    const minutes = Math.floor(diff / 60);
-    const seconds = diff % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
-
- 
-  if (loading) {
+    if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center text-white">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white">Joining meeting...</p>
+          <p className="text-lg">Joining meeting...</p>
         </div>
       </div>
     );
@@ -591,9 +616,9 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
   }
 
   return (
-    <div className={`min-h-screen bg-gray-900 text-white ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
+    <div className={`min-h-screen bg-gray-900 text-white relative flex flex-col`}>
       {/* Debug Panel - Remove in production */}
-      {process.env.NODE_ENV === 'development' && (
+      {/* {process.env.NODE_ENV === 'development' && (
         <div className="absolute top-4 left-4 z-50 bg-black bg-opacity-75 text-white p-4 rounded-lg text-xs max-w-sm">
           <h4 className="font-bold mb-2">Debug Info</h4>
           <div>Participants: {participants.length}</div>
@@ -604,11 +629,49 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
           <div>Muted: {isMuted ? 'Yes' : 'No'}</div>
           <div>Can Unmute: {canUnmute ? 'Yes' : 'No'}</div>
         </div>
+      )} */}
+      {/* Kick Modal */}
+      {showKickModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full text-gray-900">
+            <div className="text-center">
+              <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Removed from Meeting</h3>
+              <p className="text-gray-600 mb-4">{modalMessage}</p>
+              <button
+                onClick={handleModalOk}
+                className="bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-800"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
+      {/* End Meeting Modal */}
+      {showEndModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full text-gray-900">
+            <div className="text-center">
+              <AlertCircle className="h-12 w-12 text-blue-500 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Meeting Ended</h3>
+              <p className="text-gray-600 mb-4">{modalMessage}</p>
+              <button
+                onClick={handleModalOk}
+                className="bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-800"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
       {/* Meeting Header */}
-      <div className="bg-gray-800 border-b border-gray-700 p-4">
-        <div className="flex items-center justify-between">
+      <div className="bg-gray-800 border-b border-gray-700 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-4">
           <div className="flex items-center space-x-4">
             <div>
               <h1 className="text-xl font-semibold">{meeting?.title}</h1>
@@ -628,7 +691,7 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
             )}
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setShowParticipants(!showParticipants)}
               className="p-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors"
@@ -644,13 +707,6 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
                 <Settings className="h-5 w-5" />
               </button>
             )}
-
-            <button
-              onClick={() => setIsFullscreen(!isFullscreen)}
-              className="p-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors"
-            >
-              {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
-            </button>
           </div>
         </div>
       </div>
@@ -672,7 +728,8 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
           )}
 
           {/* Audio Controls */}
-          <div className="bg-gray-800 p-4 flex items-center justify-center space-x-4">
+          <div className="bg-gray-800 border-t border-gray-700 p-3 sm:p-4 left-0 right-0 lg:relative">
+            <div className="flex items-center justify-center gap-2 sm:gap-4 max-w-md mx-auto">
             {/* Mute Button with Enhanced Logic */}
       <button
         onClick={toggleMute}
@@ -739,11 +796,11 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
             </button>
 
             <div className="flex-1" />
-
+                <div className="flex items-center justify-center gap-2 mt-2">
             {canControl && (
               <button
                 onClick={endMeeting}
-                className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors"
+                className="flex-1 max-w-32 bg-red-400 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all"
               >
                 End Meeting
               </button>
@@ -751,25 +808,37 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
 
             <button
               onClick={leaveMeeting}
-              className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors flex items-center"
-            >
-              <PhoneOff className="h-5 w-5 mr-2" />
+              className="flex-1 max-w-32 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all">
+              <PhoneOff className="h-5 w-5 mr-2" /> 
               Leave
             </button>
+            </div>
           </div>
+        </div>
         </div>
 
         {/* Participants Sidebar */}
         {showParticipants && (
-          <div className="w-80 bg-gray-800 border-l border-gray-700">
-            <ParticipantsList 
+          <div className="w-full lg:w-80 bg-gray-800 border-l border-gray-700 flex flex-col absolute lg:relative inset-0 lg:inset-auto z-999 mt-30 lg:mt-0">
+             <ParticipantsList
               participants={participants}
               currentUser={user}
               meeting={meeting}
               canControl={canControl}
-              onMuteParticipant={(participantId, muted, canUnmute = false) => 
-                meetingAPI.muteParticipant(roomId, participantId, muted, canUnmute)
-              }
+              onMuteParticipant={async (participantId, muted, canUnmute) => {
+                try {
+                  await meetingAPI.muteParticipant(roomId, participantId, muted, canUnmute);
+                } catch (error) {
+                  throw error;
+                }
+              }}
+              onKickParticipant={async (participantId) => {
+                try {
+                  await meetingAPI.kickParticipant(roomId, participantId);
+                } catch (error) {
+                  throw error;
+                }
+              }}
             />
           </div>
         )}
@@ -777,11 +846,16 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
         {/* Settings Panel */}
         {showSettings && canControl && (
           <div className="w-80 bg-gray-800 border-l border-gray-700">
-            <MeetingSettings 
+             <MeetingSettings
               meeting={meeting}
-              onUpdateSettings={(settings) => 
-                meetingAPI.updateSettings(roomId, settings)
-              }
+              onUpdateSettings={async (settings) => {
+                try {
+                  await meetingAPI.updateSettings(roomId, settings);
+                  setMeeting(prev => ({ ...prev, settings: { ...prev.settings, ...settings } }));
+                } catch (error) {
+                  toast.error('Failed to update settings');
+                }
+              }}
               onClose={() => setShowSettings(false)}
             />
           </div>

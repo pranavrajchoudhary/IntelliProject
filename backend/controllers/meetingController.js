@@ -299,6 +299,66 @@ exports.muteParticipant = asyncHandler(async (req, res) => {
   });
 });
 
+// Kick participant (host or admin only)
+exports.kickParticipant = asyncHandler(async (req, res) => {
+  const { roomId, participantId } = req.params;
+  const userId = req.user._id;
+
+  const room = await MeetingRoom.findById(roomId);
+  if (!room || room.status !== 'active') {
+    return res.status(404).json({ message: 'Meeting room not found or ended' });
+  }
+
+  const canKick = req.user.role === 'admin' || room.host.toString() === userId.toString();
+  if (!canKick) {
+    return res.status(403).json({ message: 'Only host or admin can kick participants' });
+  }
+
+  const participant = room.participants.find(
+    p => p.user.toString() === participantId && p.isConnected
+  );
+
+  if (!participant) {
+    return res.status(404).json({ message: 'Participant not found in this room' });
+  }
+
+  // Mark participant as disconnected
+  participant.isConnected = false;
+  participant.leftAt = new Date();
+  participant.kickedBy = userId;
+  participant.kickedAt = new Date();
+
+  await room.save();
+
+  // Emit participant kicked event
+  const io = req.app.get('io');
+  if (io) {
+    // Notify the kicked participant
+    const kickedUserSocket = Array.from(io.sockets.sockets.values()).find(
+      (s) => s.userData?.user?._id === participantId
+    );
+    
+    if (kickedUserSocket) {
+      kickedUserSocket.emit('participantKicked', {
+        roomId,
+        kickedBy: req.user.name,
+        message: 'You have been removed from the meeting by the host.'
+      });
+    }
+
+    // Notify other participants
+    io.to(`meeting-${roomId}`).emit('participantLeft', {
+      userId: participantId,
+      userName: participant.user.name,
+      wasKicked: true,
+      kickedBy: req.user.name
+    });
+  }
+
+  res.json({ message: 'Participant kicked successfully' });
+});
+
+
 // Mute all participants (host or admin only)
 exports.muteAllParticipants = asyncHandler(async (req, res) => {
   const { roomId } = req.params;
