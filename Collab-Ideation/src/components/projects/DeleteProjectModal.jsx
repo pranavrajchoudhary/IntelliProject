@@ -4,7 +4,7 @@ import { X, Trash2, AlertTriangle } from 'lucide-react';
 
 const DeleteProjectModal = ({ project, onClose, onConfirm }) => {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}

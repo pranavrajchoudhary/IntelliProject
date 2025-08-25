@@ -4,6 +4,7 @@ import { X, Save, User, Calendar, Tag, Plus, Trash2 } from 'lucide-react';
 import { taskAPI, userAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
+import SearchableSelect from '../common/SearchableSelect';  
 
 const EditTaskModal = ({ task, projectMembers, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
@@ -93,7 +94,7 @@ const EditTaskModal = ({ task, projectMembers, onClose, onSuccess }) => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        className="fixed inset-0 backdrop-blur-md flex items-center justify-center z-50"
       >
         <motion.div
           initial={{ scale: 0.9 }}
@@ -288,40 +289,40 @@ const EditTaskModal = ({ task, projectMembers, onClose, onSuccess }) => {
                 </button>
               </div>
               
-              <div className="space-y-2">
-                {assignees.map((assignee, index) => (
-                  <div key={index} className="flex space-x-2">
-                    <select
-                      value={assignee.user}
-                      onChange={(e) => updateAssignee(index, 'user', e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
-                    >
-                      <option value="">Select Member</option>
-                      {projectMembers.map((member) => (
-                        <option key={member._id} value={member._id}>
-                          {member.name}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="text"
-                      value={assignee.role}
-                      onChange={(e) => updateAssignee(index, 'role', e.target.value)}
-                      placeholder="Role"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
-                    />
-                    {assignees.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeAssignee(index)}
-                        className="p-2 text-red-600 hover:text-red-700"
+                <div className="space-y-2">
+                  {assignees.map((assignee, index) => (
+                    <div key={index} className="flex space-x-2">
+                      <select
+                        value={assignee.user}
+                        onChange={(e) => updateAssignee(index, 'user', e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
+                        <option value="">Select Member</option>
+                        {projectMembers.map((member) => (
+                          <option key={member._id} value={member._id}>
+                            {member.name}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        value={assignee.role}
+                        onChange={(e) => updateAssignee(index, 'role', e.target.value)}
+                        placeholder="Role"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                      />
+                      {assignees.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeAssignee(index)}
+                          className="p-2 text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
             </div>
 
             <div>

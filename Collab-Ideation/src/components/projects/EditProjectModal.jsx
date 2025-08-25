@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Save, Users } from 'lucide-react';
+import SearchableSelect from '../common/SearchableSelect';
 
 const EditProjectModal = ({ project, onClose, onSuccess, users }) => {
   const [formData, setFormData] = useState({
@@ -36,7 +37,7 @@ const EditProjectModal = ({ project, onClose, onSuccess, users }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -82,7 +83,19 @@ const EditProjectModal = ({ project, onClose, onSuccess, users }) => {
             <label className="block text-sm font-medium text-black mb-2">
               Team Members
             </label>
-            <div className="max-h-40 overflow-y-auto border-2 border-gray-300 p-2">
+            <SearchableSelect
+                  options={users || []}
+                  selectedValues={selectedMembers}
+                  onSelectionChange={setSelectedMembers}
+                  placeholder="Search and select team members..."
+                  isMultiple={true}
+                  displayKey="name"
+                  valueKey="_id"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                Selected: {selectedMembers.length} member(s)
+              </p>
+              {/* <div className="max-h-40 overflow-y-auto border-2 border-gray-300 p-2">
               {users.map(user => (
                 <label key={user._id} className="flex items-center space-x-3 p-2 hover:bg-gray-50 cursor-pointer">
                   <input
@@ -100,7 +113,7 @@ const EditProjectModal = ({ project, onClose, onSuccess, users }) => {
                   </div>
                 </label>
               ))}
-            </div>
+            </div> */}
           </div>
 
           <div className="flex space-x-4">
