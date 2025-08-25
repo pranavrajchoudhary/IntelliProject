@@ -225,6 +225,41 @@ exports.joinMeetingRoom = asyncHandler(async (req, res) => {
   res.json(updatedRoom);
 });
 
+exports.getTurnCredentials = asyncHandler(async (req, res) => {
+  try {
+    // Fetch TURN credentials from Metered API
+    const apiKey = process.env.METERED_API_KEY;
+    const appName = process.env.METERED_APP_NAME;
+
+    if (!apiKey || !appName) {
+      return res.status(500).json({ message: 'TURN server configuration missing' });
+    }
+
+    const response = await fetch(
+      `https://${appName}.metered.live/api/v1/turn/credentials?apiKey=${apiKey}`
+    );
+    
+    if (!response.ok) {
+      return res.status(500).json({ message: 'Failed to fetch TURN credentials' });
+    }
+    
+    const iceServers = await response.json();
+    
+    // Add STUN servers to the mix for better compatibility
+    const combinedServers = [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      ...iceServers
+    ];
+    
+    res.json(combinedServers);
+    
+  } catch (error) {
+    console.error('Error fetching TURN credentials:', error);
+    res.status(500).json({ message: 'Failed to get TURN credentials' });
+  }
+});
+
 
 // Leave meeting room
 exports.leaveMeetingRoom = asyncHandler(async (req, res) => {

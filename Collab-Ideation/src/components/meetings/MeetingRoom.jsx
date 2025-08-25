@@ -73,13 +73,9 @@ const MeetingRoom = () => {
   const peerConnectionsRef = useRef({});
   const remoteStreamsRef = useRef({});
 
-const iceServers = {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' }
-    ]
-  };
+const [dynamicIceServers, setDynamicIceServers] = useState({
+  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] // fallback
+});
 
    useEffect(() => {
     const timer = setInterval(() => {
@@ -133,7 +129,7 @@ const iceServers = {
 
 
 
-  //WebRTC setup
+//WebRTC setup
 const createPeerConnection = useCallback((participantId) => {
   console.log('Creating peer connection for:', participantId);
   
@@ -141,14 +137,9 @@ const createPeerConnection = useCallback((participantId) => {
     peerConnectionsRef.current[participantId].close();
   }
 
-  const peerConnection = new RTCPeerConnection({
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
-    ]
-  });
+  const peerConnection = new RTCPeerConnection(dynamicIceServers);
 
-  // Add local stream
+  // local stream
   if (localStreamRef.current) {
     localStreamRef.current.getTracks().forEach(track => {
       peerConnection.addTrack(track, localStreamRef.current);
@@ -159,7 +150,6 @@ const createPeerConnection = useCallback((participantId) => {
   peerConnection.ontrack = (event) => {
     console.log('Received remote track from:', participantId);
     const [remoteStream] = event.streams;
-    
     let audioElement = document.getElementById(`audio-${participantId}`);
     if (!audioElement) {
       audioElement = document.createElement('audio');
@@ -168,7 +158,6 @@ const createPeerConnection = useCallback((participantId) => {
       audioElement.playsInline = true;
       document.body.appendChild(audioElement);
     }
-    
     audioElement.srcObject = remoteStream;
     audioElement.play().catch(e => console.log('Audio play failed:', e));
   };
@@ -186,9 +175,7 @@ const createPeerConnection = useCallback((participantId) => {
 
   peerConnectionsRef.current[participantId] = peerConnection;
   return peerConnection;
-}, [socket, roomId]);
-
-
+}, [socket, roomId, dynamicIceServers]); 
   const setupSocketListeners = useCallback(() => {
     if (!socket) return () => {};
 
@@ -377,16 +364,17 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
     };
 
     const handleOffer = async ({ offer, from }) => {
-      console.log('Received offer from', from);
-      const peerConnection = createPeerConnection(from);
-      try {
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
-        socket.emit('answer', { answer, roomId, targetId: from });
-      } catch (error) { console.error('Error handling offer:', error); }
-    };
-
+  console.log('Received offer from', from);
+  const peerConnection = createPeerConnection(from);
+  try {
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+    socket.emit('answer', { answer, roomId, targetId: from });
+  } catch (error) {
+    console.error('Error handling offer:', error);
+  }
+};
     const handleAnswer = async ({ answer, from }) => {
       console.log('Received answer from', from);
       const peerConnection = peerConnectionsRef.current[from];
@@ -447,6 +435,16 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
   const initializeMeeting = async () => {
     try {
       setLoading(true);
+
+      // Fetch TURN credentials first
+      try {
+        const turnResponse = await meetingAPI.getTurnCredentials();
+        setDynamicIceServers({ iceServers: turnResponse.data });
+        console.log('TURN credentials loaded successfully');
+      } catch (turnError) {
+        console.error('Failed to get TURN credentials, using STUN only:', turnError);
+        // Keep fallback STUN servers if TURN fails
+      }
       
       // Get meeting data
       const response = await meetingAPI.joinMeeting(roomId);

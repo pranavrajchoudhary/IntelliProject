@@ -44,5 +44,7 @@ router.get('/active',  protect, meetingController.getActiveMeetingRooms);
 // Cancel scheduled meeting (Host or Admin only)
 router.delete('/:roomId/cancel', protect, meetingController.cancelMeetingRoom);
 
+router.get('/turn-credentials', protect, meetingController.getTurnCredentials);
+
 
 module.exports = router;
