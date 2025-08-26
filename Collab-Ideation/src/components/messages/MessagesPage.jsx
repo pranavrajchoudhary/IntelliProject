@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Send, Search, Users, MessageSquare, Clock, Check, CheckCheck, Mic, X } from 'lucide-react';
 import { messageAPI, projectAPI, uploadAPI } from '../../services/api';
@@ -18,9 +18,43 @@ const MessagesPage = () => {
   const [loading, setLoading] = useState(true);
   const [unreadCounts, setUnreadCounts] = useState([]);
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
+
+  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
   
   const { user } = useAuth();
   const { socket } = useSocket();
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Check if user is at bottom of chat
+  const handleScroll = () => {
+    if (messagesContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+      const isBottom = scrollTop + clientHeight >= scrollHeight - 20; // 20px threshold
+      setIsAtBottom(isBottom);
+    }
+  };
+
+  // Auto-scroll when new messages arrive (only if user is at bottom)
+  useEffect(() => {
+    if (isAtBottom) {
+      scrollToBottom();
+    }
+  }, [messages, isAtBottom]);
+
+  // Scroll to bottom when switching chats
+  useEffect(() => {
+    if (selectedProject && messages.length > 0) {
+      setTimeout(() => {
+        scrollToBottom();
+        setIsAtBottom(true);
+      }, 100);
+    }
+  }, [selectedProject]);
 
   useEffect(() => {
     fetchProjects();
@@ -36,42 +70,72 @@ const MessagesPage = () => {
   }, [selectedProject]);
 
   // Socket event listeners
-  useEffect(() => {
-    if (socket) {
-      socket.on('newMessage', handleNewMessage);
-      socket.on('messageDelivered', handleMessageDelivered);
-      socket.on('messageRead', handleMessageRead);
+useEffect(() => {
+  if (socket) {
+    socket.on('newMessage', handleNewMessage);
+    socket.on('messageDelivered', handleMessageDelivered);
+    socket.on('messageRead', handleMessageRead);
 
-      return () => {
-        socket.off('newMessage', handleNewMessage);
-        socket.off('messageDelivered', handleMessageDelivered);
-        socket.off('messageRead', handleMessageRead);
-      };
-    }
-  }, [socket]);
+    return () => {
+      socket.off('newMessage', handleNewMessage);
+      socket.off('messageDelivered', handleMessageDelivered);
+      socket.off('messageRead', handleMessageRead);
+    };
+  }
+}, [socket, user._id]); 
 
   const handleNewMessage = (message) => {
-    setMessages(prev => [...prev, message]);
-    fetchUnreadCounts(); // Update unread counts
-  };
-
-  const handleMessageDelivered = ({ messageId }) => {
-    setMessages(prev => prev.map(msg => 
-      msg._id === messageId ? { ...msg, status: 'delivered' } : msg
-    ));
-  };
-
-  const handleMessageRead = ({ messageId, readBy }) => {
-    setMessages(prev => prev.map(msg => 
-      msg._id === messageId 
-        ? { 
-            ...msg, 
-            status: 'read',
-            readBy: [...msg.readBy, { user: readBy, readAt: new Date() }]
-          } 
+  // Don't add if it's from current user (already added locally)
+  if (message.sender._id === user._id) {
+    // Just update status if it exists
+    setMessages(prev => prev.map(msg =>
+      msg.tempId === message.tempId
+        ? { ...message, status: 'delivered' }
         : msg
     ));
-  };
+  } else {
+    // Add message from other users
+    setMessages(prev => {
+      // Check if message already exists to prevent duplicates
+      const exists = prev.find(msg => msg._id === message._id);
+      if (exists) return prev;
+      return [...prev, { ...message, status: 'delivered' }];
+    });
+    
+    // Only update unread counts if this message is NOT from the currently selected project
+    if (!selectedProject || message.project !== selectedProject._id) {
+      fetchUnreadCounts();
+    } else {
+      // If it's from current project, mark as read immediately
+      setTimeout(() => {
+        messageAPI.markAsRead(message._id);
+      }, 1000);
+    }
+  }
+};
+
+  const handleMessageDelivered = ({ messageId, tempId }) => {
+  setMessages(prev => prev.map(msg => {
+    // Match by either messageId or tempId
+    if (msg._id === messageId || msg.tempId === tempId) {
+      return { ...msg, status: 'delivered' };
+    }
+    return msg;
+  }));
+};
+
+const handleMessageRead = ({ messageId, readBy }) => {
+  setMessages(prev => prev.map(msg =>
+    msg._id === messageId
+      ? {
+          ...msg,
+          status: 'read',
+          readBy: [...(msg.readBy || []), { user: readBy, readAt: new Date() }]
+        }
+      : msg
+  ));
+};
+
 
   const fetchProjects = async () => {
     try {
@@ -134,38 +198,49 @@ const MessagesPage = () => {
   };
 
   const sendMessage = async (e) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !selectedProject) return;
+  e.preventDefault();
+  if (!newMessage.trim() || !selectedProject) return;
+  if (selectedProject.isAI) return;
 
-    if (selectedProject.isAI) return;
-
-    const tempMessage = {
-      _id: Date.now().toString(),
-      content: newMessage,
-      sender: { _id: user._id, name: user.name },
-      createdAt: new Date().toISOString(),
-      status: 'sending'
-    };
-
-    setMessages([...messages, tempMessage]);
-    setNewMessage('');
-
-    try {
-      const response = await messageAPI.createMessage({
-        content: newMessage,
-        projectId: selectedProject._id
-      });
-
-      setMessages(prev => prev.map(msg => 
-        msg._id === tempMessage._id ? { ...response.data, status: 'delivered' } : msg
-      ));
-    } catch (error) {
-      setMessages(prev => prev.map(msg => 
-        msg._id === tempMessage._id ? { ...msg, status: 'failed' } : msg
-      ));
-      toast.error('Failed to send message');
-    }
+  // Generate unique temp ID
+  const tempId = `temp_${Date.now()}_${Math.random()}`;
+  
+  const tempMessage = {
+    _id: tempId, // Use tempId as _id
+    content: newMessage,
+    sender: { _id: user._id, name: user.name },
+    createdAt: new Date().toISOString(),
+    status: 'sending', // Added missing comma
+    tempId: tempId, // Add tempId field
+    isTemporary: true // Mark as temporary
   };
+
+  setMessages([...messages, tempMessage]);
+  setNewMessage('');
+
+  try {
+    const response = await messageAPI.createMessage({
+      content: newMessage,
+      projectId: selectedProject._id, // Added missing comma
+      tempId // Send temp ID to backend
+    });
+
+    // Replace temp message with real message
+    setMessages(prev => prev.map(msg => 
+      msg.tempId === tempId 
+        ? { ...response.data, status: 'delivered' }
+        : msg
+    ));
+  } catch (error) {
+    // Mark temp message as failed
+    setMessages(prev => prev.map(msg =>
+      msg.tempId === tempId 
+        ? { ...msg, status: 'failed' }
+        : msg
+    ));
+    toast.error('Failed to send message');
+  }
+};
 
   const sendVoiceMessage = async (audioBlob, duration) => {
   if (!selectedProject || selectedProject.isAI) return;
@@ -333,7 +408,10 @@ const MessagesPage = () => {
                 ) : (
                   <>
                     {/* Messages */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4"
+                        ref={messagesContainerRef}
+                        onScroll={handleScroll}
+                      >
                       {filteredMessages.length === 0 ? (
                         <div className="text-center text-gray-500 py-8">
                           <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-300" />
@@ -377,12 +455,25 @@ const MessagesPage = () => {
                                   })}
                                 </span>
                                 {getMessageStatusIcon(message)}
+                                
                               </div>
                             </div>
                           </div>
                         ))
                       )}
+                         <div ref={messagesEndRef} />
                     </div>
+                    {!isAtBottom && (
+  <motion.button
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: 20 }}
+    onClick={scrollToBottom}
+    className="absolute bottom-20 right-4 bg-blue-600 text-white p-2 rounded-full shadow-lg hover:bg-blue-700 transition-colors z-10"
+  >
+    ↓
+  </motion.button>
+)}
 
                     {/* Voice Recorder */}
                     {showVoiceRecorder && (

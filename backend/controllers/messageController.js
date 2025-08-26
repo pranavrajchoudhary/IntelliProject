@@ -23,7 +23,7 @@ exports.getProjectMessages = asyncHandler(async (req, res) => {
 });
 
 exports.createMessage = asyncHandler(async (req, res) => {
-  const { content, projectId, type = 'text', audioUrl, audioDuration } = req.body;
+  const { content, projectId, type = 'text', audioUrl, audioDuration, tempId } = req.body;
 
   const message = await Message.create({
     content,
@@ -32,22 +32,34 @@ exports.createMessage = asyncHandler(async (req, res) => {
     type,
     audioUrl,
     audioDuration,
-    status: 'sent'
+    status: 'sent',
+    tempId // Store temp ID for matching
   });
 
   const populatedMessage = await Message.findById(message._id)
     .populate('sender', 'name email')
     .populate('readBy.user', 'name');
 
+  // Add tempId to response for frontend matching
+  const responseMessage = {
+    ...populatedMessage.toObject(),
+    tempId
+  };
+
   // Emit to project room via socket
   const io = req.app.get('io');
   if (io) {
-    io.to(projectId).emit('newMessage', populatedMessage);
-    io.to(projectId).emit('messageDelivered', { messageId: message._id });
+    io.to(projectId).emit('newMessage', responseMessage);
+    // Emit delivery confirmation with tempId
+    io.to(projectId).emit('messageDelivered', { 
+      messageId: message._id, 
+      tempId 
+    });
   }
 
-  res.status(201).json(populatedMessage);
+  res.status(201).json(responseMessage);
 });
+
 
 exports.markAsRead = asyncHandler(async (req, res) => {
   const message = await Message.findById(req.params.messageId);

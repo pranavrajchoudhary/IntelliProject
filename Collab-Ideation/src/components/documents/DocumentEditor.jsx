@@ -96,15 +96,15 @@ const DocumentEditor = ({ projectId, documentId, onClose }) => {
   return (
     <div className="h-full flex flex-col bg-white">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b-2 border-black">
+      <div className="flex flex-col sm:flex-row items-center justify-between p-2 sm:p-4 gap-2 sm:gap-0 border-b-2 border-black">
         <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center ml-5">
             <FileText className="w-6 h-6 text-black" />
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="text-xl font-bold bg-transparent border-none outline-none focus:bg-gray-50 px-2 py-1 rounded"
+              className="text-xl w-50 lg:w-80 font-bold bg-transparent border-none outline-none focus:bg-gray-50 px-2 py-1 rounded"
               placeholder="Document title..."
             />
           </div>
