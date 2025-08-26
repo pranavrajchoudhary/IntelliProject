@@ -63,7 +63,9 @@ const Layout = ({ children }) => {
       >
         <div className="flex items-center justify-between h-16 px-6 border-b-2 border-black">
           <h2 className="text-xl font-bold">IntelliProject</h2>
-          <button onClick={() => setSidebarOpen(false)}>
+          <button onClick={() => {setSidebarOpen(false);
+            setDropdownOpen(false);
+          }}>
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -81,14 +83,16 @@ const Layout = ({ children }) => {
       {/* Main content */}
       <div className="lg:ml-64">
         {/* Top header */}
-        <header className="h-16 bg-white border-b-2 border-black flex items-center justify-between px-6">
+        <header className="sticky top-0 h-16 bg-white border-b-2 border-black flex items-center justify-between px-6">
           <button
-            onClick={() => setSidebarOpen(true)}
+            onClick={() => { setSidebarOpen(true);
+              setDropdownOpen(false);
+            }}
             className="lg:hidden"
           >
             <Menu className="w-6 h-6" />
           </button>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 ml-5 mr-5">
             {/* Current Project Dropdown */}
             <div className="relative">
               <button
@@ -173,7 +177,7 @@ const Layout = ({ children }) => {
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black bg-opacity-25 lg:hidden"
+          className="fixed inset-0 z-40 backdrop-blur-md lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
