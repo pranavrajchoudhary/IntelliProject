@@ -172,7 +172,7 @@ const handleUnmuteAll = async () => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-gray-800">
+    <div className="hidden md:flex flex-col h-full bg-gray-800">
       {/* Header */}
       <div className="p-4 border-b border-gray-700">
         <div className="flex items-center justify-between mb-4">

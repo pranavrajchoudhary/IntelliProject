@@ -232,7 +232,7 @@ const hasEditPermission = useCallback(() => {
 const actualCanEdit = hasEditPermission();
 
   return (
-    <div className="w-full h-full relative">
+    <div className="w-full md:h-full h-[75vh] relative">
       {!tldrawLoaded ? (
         <div className="flex items-center justify-center h-full bg-gray-50 rounded-lg">
           <div className="text-center">

@@ -27,6 +27,7 @@ import toast from 'react-hot-toast';
 import VoiceWhiteboard from './VoiceWhiteBoard';
 import ParticipantsList from './ParticipantsList';
 import MeetingSettings from './MeetingSettings';
+import MobileParticipantsModal from './MobileParticipantsModal';
 
 const MeetingRoom = () => {
   const { roomId } = useParams();
@@ -50,8 +51,8 @@ const MeetingRoom = () => {
   const [showParticipants, setShowParticipants] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [showWhiteboard, setShowWhiteboard] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const [isMobile, setIsMobile] = useState(false);
 
   const isHost = meeting?.host._id === user._id;
   const canControl = user.role === 'admin' || isHost;
@@ -76,6 +77,22 @@ const MeetingRoom = () => {
 const [dynamicIceServers, setDynamicIceServers] = useState({
   iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] // fallback
 });
+
+useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768); // md breakpoint
+      // Auto-hide participants list on mobile
+      if (window.innerWidth < 768) {
+        setShowParticipants(false);
+      } else {
+        setShowParticipants(true);
+      }
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
    useEffect(() => {
     const timer = setInterval(() => {
@@ -527,7 +544,25 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
   initializeMeeting();
 }, [roomId, socket, user]);
 
+useEffect(() => {
+  return () => {
+    console.log('MeetingRoom component unmounting - cleaning up...');
+    cleanup();
+  };
+}, []);
 
+useEffect(() => {
+  const handleBeforeUnload = () => {
+    console.log('Page unloading - cleaning up media...');
+    cleanup();
+  };
+
+  window.addEventListener('beforeunload', handleBeforeUnload);
+  
+  return () => {
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+  };
+}, []);
 
   useEffect(() => {
     if (socket && meeting) {
@@ -535,17 +570,43 @@ const handleParticipantMuted = ({ participantId, muted, mutedBy, canUnmute }) =>
       return cleanupListeners;
     }
   }, [socket, meeting, setupSocketListeners]);
+const cleanup = useCallback(() => {
+  console.log('Cleaning up meeting resources...');
+  
+  // Close all peer connections
+  Object.values(peerConnectionsRef.current).forEach(pc => {
+    if (pc.connectionState !== 'closed') {
+      pc.close();
+    }
+  });
+  peerConnectionsRef.current = {};
 
-  const cleanup = () => {
-    Object.values(peerConnectionsRef.current).forEach(pc => pc.close());
-    peerConnectionsRef.current = {};
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
+  // Stop all local stream tracks
+  if (localStreamRef.current) {
+    localStreamRef.current.getTracks().forEach(track => {
+      console.log(`Stopping ${track.kind} track`);
+      track.stop();
+    });
+    localStreamRef.current = null;
+  }
+
+  // Remove all remote audio elements
+  participants.forEach(participant => {
+    const audioElement = document.getElementById(`audio-${participant.user._id}`);
+    if (audioElement) {
+      audioElement.srcObject = null;
+      audioElement.remove();
     }
-    if (socket) {
-      socket.emit('leaveMeeting', roomId);
-    }
-  };
+  });
+
+  // Clean up remote streams
+  remoteStreamsRef.current = {};
+
+  // Emit leave meeting if socket is still connected
+  if (socket && socket.connected) {
+    socket.emit('leaveMeeting', roomId);
+  }
+}, [participants, socket, roomId]);
 
 const toggleMute = async () => {
   if (
@@ -594,11 +655,10 @@ const toggleMute = async () => {
   }
 };
 
-
-
   const leaveMeeting = async () => {
     if (confirm('Are you sure you want to leave the meeting?')) {
       try {
+        cleanup();
         await meetingAPI.leaveMeeting(roomId);
         navigate('/meetings');
       } catch (error) {
@@ -609,6 +669,7 @@ const toggleMute = async () => {
   };
 
   const handleModalOk = () => {
+    cleanup();
     setShowKickModal(false);
     setShowEndModal(false);
     navigate('/meetings');
@@ -647,9 +708,11 @@ const toggleMute = async () => {
   const endMeeting = async () => {
     if (confirm('Are you sure you want to end this meeting for everyone?')) {
       try {
+        cleanup();
         await meetingAPI.endMeeting(roomId);
         navigate('/meetings');
       } catch (error) {
+        cleanup();
         toast.error('Failed to end meeting');
       }
     }
@@ -842,7 +905,7 @@ const onKickParticipant = async (participantId) => {
         </div>
       </div>
 
-      <div className="flex h-[calc(100vh-80px)]">
+      <div className="flex h-[75vh] md:h-[calc(100vh-80px)]">
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col">
           {/* Whiteboard */}
@@ -955,7 +1018,7 @@ const onKickParticipant = async (participantId) => {
         </div>
 
         {/* Participants Sidebar */}
-        {showParticipants && (
+        {!isMobile && showParticipants && (
           <div className="w-full lg:w-80 bg-gray-800 border-l border-gray-700 flex flex-col absolute lg:relative inset-0 lg:inset-auto z-999 mt-30 lg:mt-0">
              <ParticipantsList
               participants={participants}
@@ -967,6 +1030,19 @@ const onKickParticipant = async (participantId) => {
             />
           </div>
         )}
+        {isMobile && showParticipants && (
+          <div className='z-999'>
+        <MobileParticipantsModal
+          participants={participants}
+          currentUser={user}
+          meeting={meeting}
+          canControl={canControl}
+          onMuteParticipant={onMuteParticipant}
+          onKickParticipant={onKickParticipant}
+          onClose={() => setShowParticipants(false)}
+        />
+        </div>
+      )}
 
         {/* Settings Panel */}
         {showSettings && canControl && (
