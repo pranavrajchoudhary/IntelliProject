@@ -5,26 +5,21 @@ const MessageSchema = new mongoose.Schema({
   sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   project: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', required: true },
   type: { type: String, enum: ['text', 'file', 'system', 'voice'], default: 'text' },
-  
-  // Add delivery status
-  status: { 
-    type: String, 
-    enum: ['sending', 'sent', 'delivered', 'read'], 
-    default: 'sent' 
+  status: {
+    type: String,
+    enum: ['sending', 'sent', 'delivered', 'read'],
+    default: 'sent'
   },
-  
-  // For voice messages
+  tempId: { type: String }, // Add this for matching temp messages
   audioUrl: { type: String },
-  audioDuration: { type: Number }, // in seconds
-  
+  audioDuration: { type: Number },
   fileUrl: { type: String },
   fileName: { type: String },
-  
-  // Track which users have read the message
   readBy: [{
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     readAt: { type: Date, default: Date.now }
   }]
 }, { timestamps: true });
 
+// ADD THIS LINE - This was missing!
 module.exports = mongoose.model('Message', MessageSchema);
