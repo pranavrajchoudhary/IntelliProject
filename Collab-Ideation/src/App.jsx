@@ -19,6 +19,7 @@ import KanbanBoard from './components/KanbanBoard';
 import { CurrentProjectProvider } from './context/CurrentProjectContext';
 import MeetingsPage from './components/meetings/MeetingsPage';
 import MeetingRoom from './components/meetings/MeetingRoom';
+import AdminPage from './components/admin/AdminPage';
 
 function App() {
   const [backendReady, setBackendReady] = useState(false);
@@ -125,7 +126,15 @@ function App() {
                   </Layout>
                 </AuthGuard>
               } />
-              
+
+              <Route path="/admin" element={
+                <AuthGuard>
+                  <Layout>
+                    <AdminPage />
+                  </Layout>
+                </AuthGuard>
+              } />
+
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
             <Toaster

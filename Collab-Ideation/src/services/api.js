@@ -147,5 +147,14 @@ export const ideaAPI = {
   deleteIdea: (ideaId) => api.delete(`/ideas/${ideaId}`)
 };
 
+export const adminAPI = {
+  getAllUsers: () => api.get('/admin/users'),
+  getUserActivities: () => api.get('/admin/activities'),
+  getAdminStats: () => api.get('/admin/stats'),
+  updateUser: (userId, data) => api.put(`/admin/users/${userId}`, data),
+  deleteUser: (userId) => api.delete(`/admin/users/${userId}`),
+  suspendUser: (userId, suspended) => api.put(`/admin/users/${userId}/suspend`, { suspended }),
+  getUserActivity: (userId) => api.get(`/admin/users/${userId}/activity`),
+};
 
 export default api;
