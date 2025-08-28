@@ -551,7 +551,6 @@ const filteredProjects = projects.filter(project =>
 {/* Message Input for Mobile */}
 {!showVoiceRecorder && (
   <div className="bg-white border-t border-gray-200 p-4">
-    <form onSubmit={sendMessage} className="flex items-center space-x-2">
       <input
         type="text"
         value={newMessage}
@@ -573,7 +572,6 @@ const filteredProjects = projects.filter(project =>
       >
         <Send className="h-5 w-5" />
       </button>
-    </form>
   </div>
 )}
               </div>
