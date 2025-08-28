@@ -19,7 +19,24 @@ exports.getProjectMessages = asyncHandler(async (req, res) => {
     { status: 'delivered' }
   );
 
-  res.json(messages);
+  const messagesWithCorrectStatus = messages.map(message => {
+    if (message.sender._id.toString() === req.user._id.toString()) {
+      // For user's own messages, determine proper status
+      if (message.readBy && message.readBy.length > 0) {
+        // Check if anyone other than sender has read it
+        const hasBeenReadByOthers = message.readBy.some(read => 
+          read.user.toString() !== req.user._id.toString()
+        );
+        message.status = hasBeenReadByOthers ? 'read' : 'delivered';
+      } else {
+        // Default to delivered for user's own messages
+        message.status = message.status === 'sent' ? 'delivered' : message.status;
+      }
+    }
+    return message;
+  });
+
+  res.json(messagesWithCorrectStatus);
 });
 
 exports.createMessage = asyncHandler(async (req, res) => {

@@ -12,7 +12,7 @@ import {
   LogOut,
   User,
   Trello,
-  ChevronDown, Circle, Video,
+  ChevronDown, Circle, Video, Shield,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
@@ -35,7 +35,9 @@ const Layout = ({ children }) => {
     { name: 'Meetings', href: '/meetings', icon: Video },
     { name: 'Documents', href: '/documents', icon: FileText },
     { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-    { name: 'Settings', href: '/settings', icon: Settings },
+    // Add admin link only for admin users
+  ...(user?.role === 'admin' ? [{ name: 'Admin', href: '/admin', icon: Shield }] : []),
+      { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
   useEffect(() => {

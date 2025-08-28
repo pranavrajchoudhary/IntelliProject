@@ -99,7 +99,7 @@ export const aiAPI = {
 
 export const aiChatAPI = {
   advancedChat: (message) => api.post('/api/ai-chat/chat', { message }),
-  chat: (message) => api.post('/ai-chat/chat', { message }),
+  chat: (message) => api.post('/api/ai-chat/chat', { message }),
   projectChat: ({ message, projectId }) => api.post('/api/ai-chat/project-chat', { message, projectId }),
   generateIdeas: (topic, industry) => api.post('/api/ai-chat/project-ideas', { topic, industry })
 };
@@ -147,5 +147,14 @@ export const ideaAPI = {
   deleteIdea: (ideaId) => api.delete(`/ideas/${ideaId}`)
 };
 
+export const adminAPI = {
+  getAllUsers: () => api.get('/admin/users'),
+  getUserActivities: () => api.get('/admin/activities'),
+  getAdminStats: () => api.get('/admin/stats'),
+  updateUser: (userId, data) => api.put(`/admin/users/${userId}`, data),
+  deleteUser: (userId) => api.delete(`/admin/users/${userId}`),
+  suspendUser: (userId, suspended) => api.put(`/admin/users/${userId}/suspend`, { suspended }),
+  getUserActivity: (userId) => api.get(`/admin/users/${userId}/activity`),
+};
 
 export default api;

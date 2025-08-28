@@ -19,6 +19,9 @@ const MessagesPage = () => {
   const [unreadCounts, setUnreadCounts] = useState([]);
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
 
+  const [isMobileView, setIsMobileView] = useState(false);
+  const [showChatOnMobile, setShowChatOnMobile] = useState(false);
+
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -29,6 +32,16 @@ const MessagesPage = () => {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  useEffect(() => {
+  const checkMobile = () => {
+    setIsMobileView(window.innerWidth < 768); // md breakpoint
+  };
+  
+  checkMobile();
+  window.addEventListener('resize', checkMobile);
+  return () => window.removeEventListener('resize', checkMobile);
+}, []);
 
   // Check if user is at bottom of chat
   const handleScroll = () => {
@@ -169,7 +182,31 @@ const handleMessageRead = ({ messageId, readBy }) => {
   const fetchProjectMessages = async (projectId) => {
     try {
       const response = await messageAPI.getProjectMessages(projectId);
-      setMessages(response.data);
+
+    // Set proper status based on message properties
+    const messagesWithStatus = response.data.map(message => {
+      // If message already has a status, use it
+      if (message.status) {
+        return message;
+      }
+      
+      // Determine status based on readBy and other factors
+      let status = 'delivered'; // Default status
+      
+      // If message has readBy array and current user is not the sender
+      if (message.readBy && message.readBy.length > 0 && message.sender._id === user._id) {
+        // Check if anyone other than sender has read it
+        const hasBeenRead = message.readBy.some(read => read.user !== user._id);
+        status = hasBeenRead ? 'read' : 'delivered';
+      }
+      
+      return {
+        ...message,
+        status
+      };
+    });
+    
+     setMessages(messagesWithStatus);
       
       // Join socket room
       if (socket) {
@@ -303,6 +340,25 @@ const handleMessageRead = ({ messageId, readBy }) => {
     message.sender.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const selectProject = (project) => {
+  setSelectedProject(project);
+  if (isMobileView) {
+    setShowChatOnMobile(true);
+  }
+};
+
+const handleBackToList = () => {
+  setShowChatOnMobile(false);
+  setSelectedProject(null);
+};
+
+const filteredProjects = projects.filter(project =>
+  project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  project.description.toLowerCase().includes(searchTerm.toLowerCase())
+);
+
+
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -313,6 +369,219 @@ const handleMessageRead = ({ messageId, readBy }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Mobile: Show list or chat based on state */}
+  {isMobileView ? (
+    <>
+      {!showChatOnMobile ? (
+        // Mobile Chat List View
+        <div className="h-full flex flex-col">
+          {/* Mobile Header */}
+          <div className="bg-white border-b border-gray-200 p-4">
+            <div className="flex items-center justify-between">
+              <h1 className="text-xl font-semibold text-gray-800">Messages</h1>
+              <div className="flex items-center space-x-2">
+                <Search className="h-5 w-5 text-gray-500" />
+              </div>
+            </div>
+            {/* Search Bar */}
+            <div className="mt-3 relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search conversations..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* Mobile Projects List */}
+          <div className="flex-1 overflow-y-auto">
+            {loading ? (
+              <div className="flex items-center justify-center h-32">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              </div>
+            ) : (
+              <>
+                {/* AI Chat Option */}
+                <div
+                  onClick={() => selectProject({ isAI: true, name: 'AI Assistant', _id: 'ai-chat' })}
+                  className="flex items-center p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
+                >
+                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mr-3">
+                    <MessageSquare className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-gray-900 truncate">AI Assistant</h3>
+                    <p className="text-sm text-gray-500 truncate">Get help with platform features</p>
+                  </div>
+                </div>
+
+                {/* Regular Projects */}
+                {filteredProjects.map((project) => {
+                  const unreadCount = unreadCounts.find(uc => uc._id === project._id)?.count || 0;
+                  return (
+                    <div
+                      key={project._id}
+                      onClick={() => selectProject(project)}
+                      className="flex items-center p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
+                    >
+                      <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mr-3">
+                        <Users className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-medium text-gray-900 truncate">{project.title}</h3>
+                          {unreadCount > 0 && (
+                            <span className="bg-blue-500 text-white text-xs rounded-full px-2 py-1 min-w-[1.25rem] h-5 flex items-center justify-center">
+                              {unreadCount}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-500 truncate">{project.description}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        </div>
+      ) : (
+        // Mobile Chat View
+        <div className="h-full flex flex-col">
+          {/* Mobile Chat Header */}
+          <div className="bg-white border-b border-gray-200 p-4 flex items-center">
+            <button
+              onClick={handleBackToList}
+              className="mr-3 p-1 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <X className="h-5 w-5 text-gray-600" />
+            </button>
+            <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center mr-3">
+              {selectedProject?.isAI ? (
+                <MessageSquare className="h-5 w-5 text-white" />
+              ) : (
+                <Users className="h-5 w-5 text-white" />
+              )}
+            </div>
+            <div className="flex-1">
+              <h2 className="font-semibold text-gray-900">
+                {selectedProject?.isAI ? 'AI Assistant' : selectedProject?.title}
+              </h2>
+              <p className="text-sm text-gray-500">
+                {selectedProject?.isAI ? 'Online' : 'Project Chat'}
+              </p>
+            </div>
+          </div>
+
+          {/* Chat Content */}
+          {selectedProject?.isAI ? (
+            <AIChat />
+          ) : (
+            <>
+              {/* Messages Container */}
+              <div
+                ref={messagesContainerRef}
+                onScroll={handleScroll}
+                className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50"
+              >
+               {messages.length === 0 ? (
+  <div className="text-center text-gray-500 mt-8">
+    <MessageSquare className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+    <p>No messages yet. Start the conversation!</p>
+  </div>
+) : (
+  messages.map((message) => (
+    <motion.div
+      key={message._id || message.tempId}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`flex ${message.sender._id === user._id ? 'justify-end' : 'justify-start'}`}
+    >
+      <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg shadow-sm ${
+        message.sender._id === user._id
+          ? 'bg-black text-white'
+          : 'bg-white text-gray-800'
+      }`}>
+        {message.sender._id !== user._id && (
+          <p className="text-xs font-medium mb-1 text-gray-600">
+            {message.sender.name}
+          </p>
+        )}
+        
+        {message.type === 'voice' ? (
+          <VoicePlayer 
+            audioUrl={message.audioUrl} 
+            duration={message.audioDuration}
+            className="mb-1"
+          />
+        ) : (
+          <p className="text-sm">{message.content}</p>
+        )}
+        
+        <div className="flex items-center justify-between mt-1">
+          <span className="text-xs opacity-70">
+            {new Date(message.createdAt).toLocaleTimeString([], { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            })}
+          </span>
+          {getMessageStatusIcon(message)}
+        </div>
+      </div>
+    </motion.div>
+  ))
+)}
+                <div ref={messagesEndRef} />
+              </div>
+
+              {/* Message Input */}
+              <div className="bg-white border-t border-gray-200 p-4">
+            {showVoiceRecorder && (
+  <div className="bg-white border-t border-gray-200 p-4">
+    <VoiceRecorder
+      onSendVoice={sendVoiceMessage}
+      onCancel={() => setShowVoiceRecorder(false)}
+    />
+  </div>
+)}
+
+{/* Message Input for Mobile */}
+{!showVoiceRecorder && (
+  <div className="bg-white border-t border-gray-200 p-4">
+      <input
+        type="text"
+        value={newMessage}
+        onChange={(e) => setNewMessage(e.target.value)}
+        placeholder="Type a message..."
+        className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      />
+      <button
+        type="button"
+        onClick={() => setShowVoiceRecorder(true)}
+        className="p-2 text-gray-500 hover:text-blue-500 transition-colors"
+      >
+        <Mic className="h-5 w-5" />
+      </button>
+      <button
+        type="submit"
+        disabled={!newMessage.trim()}
+        className="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      >
+        <Send className="h-5 w-5" />
+      </button>
+  </div>
+)}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </>
+  ) : (
+
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="bg-white rounded-lg shadow-sm border h-[80vh] flex">
           {/* Sidebar */}
@@ -324,10 +593,10 @@ const handleMessageRead = ({ messageId, readBy }) => {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search messages..."
+                  placeholder="Search projects..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
                 />
               </div>
             </div>
@@ -355,7 +624,7 @@ const handleMessageRead = ({ messageId, readBy }) => {
               </div>
 
               {/* Project Chats */}
-              {projects.map((project) => {
+              {filteredProjects.map((project) => {
                 const unreadCount = getUnreadCount(project._id);
                 return (
                   <div
@@ -370,7 +639,7 @@ const handleMessageRead = ({ messageId, readBy }) => {
                         <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
                           <span className="text-sm font-medium text-gray-700">
                             {project.title.charAt(0).toUpperCase()}
-                          </span>
+                          </span> 
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center justify-between">
@@ -464,16 +733,16 @@ const handleMessageRead = ({ messageId, readBy }) => {
                          <div ref={messagesEndRef} />
                     </div>
                     {!isAtBottom && (
-  <motion.button
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: 20 }}
-    onClick={scrollToBottom}
-    className="absolute bottom-20 right-4 bg-blue-600 text-white p-2 rounded-full shadow-lg hover:bg-blue-700 transition-colors z-10"
-  >
-    ↓
-  </motion.button>
-)}
+                    <motion.button
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 20 }}
+                      onClick={scrollToBottom}
+                      className="absolute bottom-20 right-4 bg-blue-600 text-white p-2 rounded-full shadow-lg hover:bg-blue-700 transition-colors z-10"
+                    >
+                      ↓
+                    </motion.button>
+                  )}
 
                     {/* Voice Recorder */}
                     {showVoiceRecorder && (
@@ -529,6 +798,7 @@ const handleMessageRead = ({ messageId, readBy }) => {
           </div>
         </div>
       </div>
+  )}
     </div>
   );
 };
