@@ -20,9 +20,11 @@ const EditProjectModal = ({ project, onClose, onSuccess, users }) => {
     setLoading(true);
   try {
     console.log('Updating project with members:', selectedMembers);
+    // Ensure owner is always included in members array
+    const membersWithOwner = [...new Set([project.owner._id, ...selectedMembers])];
     await onSuccess(project._id, {
       ...formData,
-      members: selectedMembers 
+      members: membersWithOwner 
     });
   } finally {
     setLoading(false);
