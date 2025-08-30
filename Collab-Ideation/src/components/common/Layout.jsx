@@ -35,7 +35,6 @@ const Layout = ({ children }) => {
     { name: 'Meetings', href: '/meetings', icon: Video },
     { name: 'Documents', href: '/documents', icon: FileText },
     { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-    // Add admin link only for admin users
   ...(user?.role === 'admin' ? [{ name: 'Admin', href: '/admin', icon: Shield }] : []),
       { name: 'Settings', href: '/settings', icon: Settings },
   ];
@@ -61,7 +60,7 @@ const Layout = ({ children }) => {
       <motion.div
         initial={false}
         animate={{ x: sidebarOpen ? 0 : -300 }}
-        className="fixed inset-y-0 left-0 z-50 w-64 bg-white border-r-2 border-black lg:hidden"
+        className="fixed inset-y-0 left-0 z-9999 w-64 bg-white border-r-2 border-black lg:hidden"
       >
         <div className="flex items-center justify-between h-16 px-6 border-b-2 border-black">
           <h2 className="text-xl font-bold">IntelliProject</h2>
@@ -85,7 +84,7 @@ const Layout = ({ children }) => {
       {/* Main content */}
       <div className="lg:ml-64">
         {/* Top header */}
-        <header className="sticky top-0 h-16 bg-white border-b-2 border-black flex items-center justify-between px-6">
+        <header className="sticky top-0 h-16 bg-white border-b-2 border-black flex items-center justify-between px-6 z-9998">
           <button
             onClick={() => { setSidebarOpen(true);
               setDropdownOpen(false);

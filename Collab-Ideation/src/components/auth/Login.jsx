@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LogIn, User, Lock, AlertCircle, X } from 'lucide-react';
+import { LogIn, User, Lock, AlertCircle, X, Info, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -9,8 +9,22 @@ const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [statusMessage, setStatusMessage] = useState(null);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    // Check for messages passed from registration
+    if (location.state?.message) {
+      setStatusMessage({
+        text: location.state.message,
+        type: location.state.type || 'info'
+      });
+      // Clear the state to prevent showing message on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -82,6 +96,42 @@ const Login = () => {
             <h1 className="text-3xl font-bold text-black">Welcome Back</h1>
             <p className="text-gray-600 mt-2">Sign in to your account</p>
           </div>
+
+          {/* Status Message */}
+          {statusMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`${
+                statusMessage.type === 'info' 
+                  ? 'bg-blue-50 border-blue-200' 
+                  : 'bg-green-50 border-green-200'
+              } border-2 rounded p-4 mb-6 flex items-start space-x-3`}
+            >
+              {statusMessage.type === 'info' ? (
+                <Info className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
+              ) : (
+                <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+              )}
+              <div className="flex-1">
+                <p className={`text-sm ${
+                  statusMessage.type === 'info' ? 'text-blue-700' : 'text-green-700'
+                }`}>
+                  {statusMessage.text}
+                </p>
+              </div>
+              <button
+                onClick={() => setStatusMessage(null)}
+                className={`${
+                  statusMessage.type === 'info' 
+                    ? 'text-blue-400 hover:text-blue-600' 
+                    : 'text-green-400 hover:text-green-600'
+                }`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </motion.div>
+          )}
 
           {/* Error Alert */}
           {error && (

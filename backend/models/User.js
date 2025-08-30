@@ -5,7 +5,19 @@ const UserSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: { type: String, enum: ['admin','pm','member','guest'], default: 'member' }
+  role: { type: String, enum: ['admin','pm','member','guest'], default: 'member' },
+  status: { 
+    type: String, 
+    enum: ['pending', 'approved', 'rejected', 'suspended'], 
+    default: 'approved'
+  },
+  suspended: { type: Boolean, default: false },
+  approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  approvedAt: { type: Date },
+  rejectionReason: { type: String },
+  originalRole: { type: String, enum: ['admin','pm','member','guest'] },
+  lastLogin: { type: Date },
+  isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 
 UserSchema.pre('save', async function(next) {

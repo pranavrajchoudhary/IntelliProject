@@ -149,11 +149,15 @@ export const ideaAPI = {
 
 export const adminAPI = {
   getAllUsers: () => api.get('/admin/users'),
+  getPendingRegistrations: () => api.get('/admin/pending-registrations'),
+  approveRegistration: (userId, approved, rejectionReason) => 
+    api.put(`/admin/registrations/${userId}/approve`, { approved, rejectionReason }),
   getUserActivities: () => api.get('/admin/activities'),
   getAdminStats: () => api.get('/admin/stats'),
   updateUser: (userId, data) => api.put(`/admin/users/${userId}`, data),
   deleteUser: (userId) => api.delete(`/admin/users/${userId}`),
   suspendUser: (userId, suspended) => api.put(`/admin/users/${userId}/suspend`, { suspended }),
+  restoreUserRole: (userId) => api.put(`/admin/users/${userId}/restore-role`),
   getUserActivity: (userId) => api.get(`/admin/users/${userId}/activity`),
 };
 
