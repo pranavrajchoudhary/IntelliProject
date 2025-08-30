@@ -7,6 +7,7 @@ import AuthGuard from './components/auth/AuthGuard';
 import Layout from './components/common/Layout';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
+import TermsAndConditions from './components/auth/TermsAndConditions';
 import Dashboard from './components/dashboard/Dashboard';
 import ProjectDetail from './components/projects/ProjectDetail';
 import ProjectsPage from './components/projects/ProjectsPage';
@@ -39,8 +40,12 @@ function App() {
         <Router>
           <div className="min-h-screen bg-white text-black">
             <Routes>
+              {/* Public routes - no authentication required */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/terms" element={<TermsAndConditions />} />
+              
+              {/* Protected routes - authentication required */}
               <Route
                 path="/"
                 element={

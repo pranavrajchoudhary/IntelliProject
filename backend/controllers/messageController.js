@@ -3,7 +3,17 @@ const Project = require('../models/Project');
 const asyncHandler = require('../utils/asyncHandler');
 
 exports.getProjectMessages = asyncHandler(async (req, res) => {
-  const messages = await Message.find({ project: req.params.projectId })
+  const { excludeVoice } = req.query;
+  
+  // Build query filter
+  const filter = { project: req.params.projectId };
+  
+  // If excludeVoice is true, filter out voice messages
+  if (excludeVoice === 'true') {
+    filter.type = { $ne: 'voice' };
+  }
+  
+  const messages = await Message.find(filter)
     .populate('sender', 'name email')
     .populate('readBy.user', 'name')
     .sort({ createdAt: 1 })

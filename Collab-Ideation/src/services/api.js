@@ -66,12 +66,17 @@ export const userAPI = {
   getProfile: () => api.get('/users/profile'),
   updateProfile: (data) => api.put('/users/profile', data),
   getUsers: () => api.get('/users'),
+  getUsersForCollaboration: () => api.get('/users/for-collaboration'),
   updateUserRole: (userId, data) => api.put(`/users/${userId}/role`, data),
   searchUsers: (query) => api.get(`/users/search?query=${query}`)
 };
 
 export const messageAPI = {
-  getProjectMessages: (projectId) => api.get(`/messages/project/${projectId}`),
+  getProjectMessages: (projectId, params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    const url = `/messages/project/${projectId}${queryString ? `?${queryString}` : ''}`;
+    return api.get(url);
+  },
   getUserMessages: () => api.get('/messages/user'),
   createMessage: (data) => api.post('/messages', data),
   markAsRead: (messageId) => api.put(`/messages/${messageId}/read`),

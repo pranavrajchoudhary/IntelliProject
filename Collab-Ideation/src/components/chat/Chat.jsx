@@ -100,7 +100,8 @@ const Chat = ({ projectId, onClose }) => {
 
   const fetchMessages = async () => {
     try {
-      const response = await messageAPI.getProjectMessages(projectId);
+      // For project chat, exclude voice messages
+      const response = await messageAPI.getProjectMessages(projectId, { excludeVoice: true });
       setMessages(response.data);
     } catch (error) {
       console.error('Failed to fetch messages:', error);
