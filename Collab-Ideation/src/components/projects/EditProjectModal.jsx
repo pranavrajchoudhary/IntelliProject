@@ -18,15 +18,16 @@ const EditProjectModal = ({ project, onClose, onSuccess, users }) => {
     if (!formData.title.trim()) return;
 
     setLoading(true);
-    try {
-      await onSuccess(project._id, {
-        ...formData,
-        members: selectedMembers
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    console.log('Updating project with members:', selectedMembers);
+    await onSuccess(project._id, {
+      ...formData,
+      members: selectedMembers 
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   const toggleMember = (userId) => {
     setSelectedMembers(prev =>

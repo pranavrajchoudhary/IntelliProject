@@ -65,11 +65,16 @@ const authorizeProjectAccess = (action = 'read') => {
             message: 'Members can only view projects, not modify them' 
           });
         }
+
+          if (project.members.some(memberId => memberId.toString() === user._id.toString())) {
+    req.project = project;
+    return next();
+  }
         
-        if (project.members.includes(user._id)) {
-          req.project = project;
-          return next();
-        }
+        // if (project.members.includes(user._id)) {
+        //   req.project = project;
+        //   return next();
+        // }
         
         return res.status(403).json({ 
           message: 'You can only view projects you are a member of' 
