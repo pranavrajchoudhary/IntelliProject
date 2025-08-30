@@ -151,7 +151,10 @@ const Layout = ({ children }) => {
             </div>
           
           <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
+            <button
+              onClick={() => navigate('/settings')}
+              className="flex items-center space-x-2 hover:bg-gray-100 rounded-lg p-2 transition-colors"
+            >
               <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center">
                 <User className="w-5 h-5 text-white" />
               </div>
@@ -159,7 +162,7 @@ const Layout = ({ children }) => {
                 <p className="font-medium">{user?.name}</p>
                 <p className="text-sm text-gray-500 capitalize">{user?.role}</p>
               </div>
-            </div>
+            </button>
             <button
               onClick={handleLogout}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"

@@ -150,20 +150,20 @@ const Dashboard = () => {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
         <div>
           <h1 className="text-3xl font-bold text-black">
             Welcome back, {user?.name.split(' ')[0]}!
           </h1>
           <p className="text-gray-600 mt-2">Here's what's happening with your projects today.</p>
         </div>
-        <div className="flex space-x-4 mt-4 sm:mt-0">
+        <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-4">
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleRefreshTrends}
             disabled={refreshingTrends}
-            className={`flex items-center space-x-2 px-4 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors ${
+            className={`flex items-center justify-center space-x-2 px-4 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors ${
               refreshingTrends ? 'opacity-50 cursor-not-allowed' : ''
             }`}
           >
@@ -184,7 +184,7 @@ const Dashboard = () => {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowAIGenerator(true)}
-            className="flex items-center space-x-2 px-4 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors"
+            className="flex items-center justify-center space-x-2 px-4 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors"
           >
             <Lightbulb className="w-5 h-5" />
             <span>AI Ideas</span>
@@ -193,7 +193,7 @@ const Dashboard = () => {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-black text-white hover:bg-gray-800 transition-colors"
+            className="flex items-center justify-center space-x-2 px-4 py-2 bg-black text-white hover:bg-gray-800 transition-colors"
           >
             <Plus className="w-5 h-5" />
             <span>New Project</span>
