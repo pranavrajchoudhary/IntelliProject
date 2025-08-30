@@ -6,6 +6,9 @@ const settingsController = require('../controllers/settingsController');
 router.get('/', protect, settingsController.getUserSettings);
 router.put('/', protect, settingsController.updateUserSettings);
 router.put('/password', protect, settingsController.changePassword);
+router.post('/password-reset/send-otp', protect, settingsController.sendPasswordResetOTP);
+router.post('/password-reset/verify-otp', protect, settingsController.verifyOTPAndResetPassword);
+router.get('/test-brevo', protect, settingsController.testBrevo); // Test endpoint
 router.delete('/account', protect, settingsController.deleteAccount);
 
 module.exports = router;
