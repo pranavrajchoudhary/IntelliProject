@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { UserPlus, User, Mail, Lock, Shield } from 'lucide-react';
+import { UserPlus, User, Mail, Lock, Shield, FileText } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const Register = () => {
@@ -11,12 +11,19 @@ const Register = () => {
     password: '',
     role: 'member'
   });
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!acceptedTerms) {
+      alert('Please accept the Terms and Conditions to continue.');
+      return;
+    }
+    
     setLoading(true);
     try {
       const result = await register(formData.name, formData.email, formData.password, formData.role);
@@ -140,12 +147,63 @@ const Register = () => {
               </div>
             </div>
 
+            {/* Terms and Conditions */}
+            <div className="space-y-4">
+              <div className="flex items-start space-x-3">
+                <div className="flex items-center h-5">
+                  <input
+                    id="terms"
+                    type="checkbox"
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    className="w-4 h-4 text-black bg-gray-100 border-gray-300 rounded focus:ring-black focus:ring-2"
+                    required
+                  />
+                </div>
+                <div className="text-sm">
+                  <label htmlFor="terms" className="text-gray-700">
+                    I agree to the{' '}
+                    <button
+                      type="button"
+                      onClick={() => window.open('/terms.html', '_blank')}
+                      className="text-black font-medium hover:underline cursor-pointer"
+                    >
+                      Terms and Conditions
+                    </button>
+                    {' '}and{' '}
+                    <button
+                      type="button"
+                      onClick={() => window.open('/terms.html', '_blank')}
+                      className="text-black font-medium hover:underline cursor-pointer"
+                    >
+                      Privacy Policy
+                    </button>
+                    <span className="text-red-500 ml-1">*</span>
+                  </label>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2 text-xs text-gray-500">
+                <FileText className="w-4 h-4" />
+                <button
+                  type="button"
+                  onClick={() => window.open('/terms.html', '_blank')}
+                  className="hover:text-black transition-colors flex items-center cursor-pointer"
+                >
+                  Read our Terms and Conditions
+                  <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               type="submit"
-              disabled={loading}
-              className="w-full bg-black text-white py-3 px-4 hover:bg-gray-800 transition-colors disabled:opacity-50 font-medium"
+              disabled={loading || !acceptedTerms}
+              className="w-full bg-black text-white py-3 px-4 hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
               {loading ? 'Creating Account...' : 'Create Account'}
             </motion.button>
