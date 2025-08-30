@@ -551,27 +551,36 @@ const filteredProjects = projects.filter(project =>
 {/* Message Input for Mobile */}
 {!showVoiceRecorder && (
   <div className="bg-white border-t border-gray-200 p-4">
+    <div className="flex items-center space-x-2">
       <input
         type="text"
         value={newMessage}
         onChange={(e) => setNewMessage(e.target.value)}
+        onKeyPress={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            sendMessage(e);
+          }
+        }}
         placeholder="Type a message..."
         className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
       />
       <button
         type="button"
         onClick={() => setShowVoiceRecorder(true)}
-        className="p-2 text-gray-500 hover:text-blue-500 transition-colors"
+        className="p-2 text-gray-500 hover:text-blue-500 transition-colors rounded-full hover:bg-gray-100"
       >
         <Mic className="h-5 w-5" />
       </button>
       <button
-        type="submit"
+        type="button"
+        onClick={(e) => sendMessage(e)}
         disabled={!newMessage.trim()}
         className="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         <Send className="h-5 w-5" />
       </button>
+    </div>
   </div>
 )}
               </div>
