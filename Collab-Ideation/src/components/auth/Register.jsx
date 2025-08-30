@@ -19,9 +19,22 @@ const Register = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await register(formData.name, formData.email, formData.password, formData.role);
-      navigate('/');
+      const result = await register(formData.name, formData.email, formData.password, formData.role);
+      
+      if (result && result.status === 'pending') {
+        // Show pending approval message and redirect to login
+        navigate('/login', { 
+          state: { 
+            message: 'Registration submitted for approval. You will be notified once approved.',
+            type: 'info'
+          }
+        });
+      } else {
+        // Normal flow for approved registrations (members)
+        navigate('/');
+      }
     } catch (error) {
+      // Error is already handled by AuthContext
     } finally {
       setLoading(false);
     }

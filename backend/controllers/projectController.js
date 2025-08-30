@@ -6,12 +6,22 @@ const asyncHandler = require('../utils/asyncHandler');
 // Create project - Any authenticated user can create
 const createProject = asyncHandler(async (req, res) => {
   const { title, description, members } = req.body;
+
+  const projectMembers = [req.user._id];
+  if (members && Array.isArray(members)) {
+    // Add new members (avoid duplicates)
+    members.forEach(memberId => {
+      if (!projectMembers.includes(memberId)) {
+        projectMembers.push(memberId);
+      }
+    });
+  }
   
   const project = await Project.create({
     title,
     description,
     owner: req.user._id,
-    members: [req.user._id, ...(members || [])]
+    members: projectMembers
   });
 
   await project.populate('owner', 'name email');
@@ -29,14 +39,20 @@ const getProjects = asyncHandler(async (req, res) => {
   if (user.role === 'admin') {
     query = {};
   }
-  // PM sees projects they own
+ // PM sees projects they own OR are members of
   else if (user.role === 'pm') {
-    query = { owner: user._id };
+    query = {
+      $or: [
+        { owner: user._id },
+        { members: { $in: [user._id] } }  // $in for array search
+      ]
+    };
   }
   // Members see projects they belong to
-  else {
-    query = { members: user._id };
+ else {
+    query = { members: { $in: [user._id] } };  
   }
+
 
   const projects = await Project.find(query)
     .populate('owner', 'name email')

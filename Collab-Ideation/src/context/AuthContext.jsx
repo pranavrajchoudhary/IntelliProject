@@ -50,7 +50,6 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Wrap functions in useCallback so they don't cause re-renders
   const login = useCallback(async (email, password) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
@@ -90,6 +89,15 @@ export const AuthProvider = ({ children }) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       const response = await authAPI.register(name, email, password, role);
+      
+      //Checks if registration is pending approval
+      if (response.status === 202) {
+        const data = response.data;
+        toast.success(data.message);
+        return { status: 'pending', role: data.role };
+      }
+      
+      //Normal registration flow for members
       const userData = response.data;
       
       localStorage.setItem('token', userData.token);
@@ -97,7 +105,8 @@ export const AuthProvider = ({ children }) => {
         _id: userData._id,
         name: userData.name,
         email: userData.email,
-        role: userData.role
+        role: userData.role,
+        status: userData.status
       }));
 
       dispatch({
@@ -107,12 +116,14 @@ export const AuthProvider = ({ children }) => {
             _id: userData._id,
             name: userData.name,
             email: userData.email,
-            role: userData.role
+            role: userData.role,
+            status: userData.status
           }, 
           token: userData.token 
         }
       });
       toast.success('Registration successful!');
+      return { status: 'approved' };
     } catch (error) {
       toast.error(error.response?.data?.message || 'Registration failed');
       throw error;
@@ -128,7 +139,6 @@ export const AuthProvider = ({ children }) => {
     toast.success('Logged out successfully');
   }, []);
 
-  // Memoize the context value
   const contextValue = useMemo(() => ({
     user: state.user,
     token: state.token,
