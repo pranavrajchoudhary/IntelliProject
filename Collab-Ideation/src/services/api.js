@@ -90,6 +90,8 @@ export const settingsAPI = {
   getUserSettings: () => api.get('/settings'),
   updateSettings: (data) => api.put('/settings', data),
   changePassword: (data) => api.put('/settings/password', data),
+  sendPasswordResetOTP: (email) => api.post('/settings/password-reset/send-otp', { email }),
+  verifyOTPAndResetPassword: (email, otp, newPassword) => api.post('/settings/password-reset/verify-otp', { email, otp, newPassword }),
   deleteAccount: () => api.delete('/settings/account')
 };
 

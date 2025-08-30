@@ -1,6 +1,8 @@
 const User = require('../models/User');
 const Project = require('../models/Project');
 const asyncHandler = require('../utils/asyncHandler');
+const { sendOTPEmail, testBrevoConnection } = require('../config/brevo');
+const { generateOTP, storeOTP, verifyOTP } = require('../utils/otpService');
 
 exports.getUserSettings = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id).select('-password');
@@ -45,4 +47,71 @@ exports.changePassword = asyncHandler(async (req, res) => {
 exports.deleteAccount = asyncHandler(async (req, res) => {
   await User.findByIdAndDelete(req.user._id);
   res.json({ message: 'Account deleted successfully' });
+});
+
+// Send OTP for password reset
+exports.sendPasswordResetOTP = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  
+  // Verify that the email belongs to the current user
+  if (email !== req.user.email) {
+    return res.status(400).json({ message: 'Email does not match your account' });
+  }
+  
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+  
+  try {
+    const otp = generateOTP();
+    storeOTP(email, otp);
+    
+    await sendOTPEmail(email, otp, user.name);
+    
+    res.json({ 
+      message: 'OTP sent successfully to your email',
+      email: email 
+    });
+  } catch (error) {
+    console.error('Error sending OTP:', error);
+    res.status(500).json({ message: 'Failed to send OTP. Please try again.' });
+  }
+});
+
+// Verify OTP and reset password
+exports.verifyOTPAndResetPassword = asyncHandler(async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+  
+  // Verify that the email belongs to the current user
+  if (email !== req.user.email) {
+    return res.status(400).json({ message: 'Email does not match your account' });
+  }
+  
+  const otpVerification = verifyOTP(email, otp);
+  
+  if (!otpVerification.valid) {
+    return res.status(400).json({ message: otpVerification.message });
+  }
+  
+  // Update password
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+  
+  user.password = newPassword;
+  await user.save();
+  
+  res.json({ message: 'Password reset successfully' });
+});
+
+// Test BREVO connection
+exports.testBrevo = asyncHandler(async (req, res) => {
+  try {
+    const result = await testBrevoConnection();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to test BREVO connection', error: error.message });
+  }
 });

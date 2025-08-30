@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Lock, Bell, Trash2, Save, Calendar } from 'lucide-react';
+import { User, Lock, Bell, Trash2, Save, Calendar, Mail, Shield } from 'lucide-react';
 import { settingsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -14,6 +14,15 @@ const SettingsPage = () => {
     newPassword: '', 
     confirmPassword: '' 
   });
+  
+  // New OTP-based password reset states
+  const [passwordResetStep, setPasswordResetStep] = useState('initial'); // 'initial', 'email', 'otp', 'password'
+  const [resetEmail, setResetEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { user, logout } = useAuth();
@@ -90,6 +99,80 @@ const SettingsPage = () => {
         toast.error('Failed to delete account');
       }
     }
+  };
+
+  // New OTP-based password reset functions
+  const startPasswordReset = () => {
+    setPasswordResetStep('email');
+    setResetEmail(user.email);
+  };
+
+  const sendOTP = async (e) => {
+    e.preventDefault();
+    if (!resetEmail.trim()) {
+      toast.error('Please enter your email');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await settingsAPI.sendPasswordResetOTP(resetEmail);
+      setOtpSent(true);
+      setPasswordResetStep('otp');
+      toast.success('OTP sent to your email!');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to send OTP');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const verifyOTPAndResetPassword = async (e) => {
+    e.preventDefault();
+    
+    if (!otpCode.trim()) {
+      toast.error('Please enter the OTP');
+      return;
+    }
+    
+    if (passwordResetStep === 'otp') {
+      // Just verify OTP and move to password step
+      setPasswordResetStep('password');
+      toast.success('OTP verified! Now set your new password.');
+      return;
+    }
+
+    if (passwordResetStep === 'password') {
+      if (newPassword !== confirmNewPassword) {
+        toast.error('New passwords do not match');
+        return;
+      }
+
+      if (newPassword.length < 6) {
+        toast.error('Password must be at least 6 characters long');
+        return;
+      }
+
+      setSaving(true);
+      try {
+        await settingsAPI.verifyOTPAndResetPassword(resetEmail, otpCode, newPassword);
+        toast.success('Password reset successfully!');
+        resetPasswordForm();
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to reset password');
+      } finally {
+        setSaving(false);
+      }
+    }
+  };
+
+  const resetPasswordForm = () => {
+    setPasswordResetStep('initial');
+    setResetEmail('');
+    setOtpCode('');
+    setNewPassword('');
+    setConfirmNewPassword('');
+    setOtpSent(false);
   };
 
   if (loading) {
@@ -207,59 +290,216 @@ const SettingsPage = () => {
 
           {activeTab === 'security' && (
             <div className="bg-white border-2 border-black p-6">
-              <h2 className="text-xl font-bold text-black mb-6">Change Password</h2>
+              <h2 className="text-xl font-bold text-black mb-6">Security Settings</h2>
               
-              <form onSubmit={handlePasswordChange} className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-black mb-2">
-                    Current Password
-                  </label>
-                  <input
-                    type="password"
-                    value={passwordForm.currentPassword}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-gray-300 focus:border-black focus:outline-none transition-colors"
-                    required
-                  />
-                </div>
+              {/* Current Password Change Section */}
+              <div className="mb-8 p-4 border border-gray-200 rounded-lg">
+                {/* <h3 className="text-lg font-semibold text-black mb-4">Current Password Change</h3> */}
+                {/* <form onSubmit={handlePasswordChange} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-2">
+                      Current Password
+                    </label>
+                    <input
+                      type="password"
+                      value={passwordForm.currentPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                      className="w-full px-4 py-3 border-2 border-gray-300 focus:border-black focus:outline-none transition-colors"
+                      required
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-black mb-2">
-                    New Password
-                  </label>
-                  <input
-                    type="password"
-                    value={passwordForm.newPassword}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-gray-300 focus:border-black focus:outline-none transition-colors"
-                    required
-                  />
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-2">
+                      New Password
+                    </label>
+                    <input
+                      type="password"
+                      value={passwordForm.newPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                      className="w-full px-4 py-3 border-2 border-gray-300 focus:border-black focus:outline-none transition-colors"
+                      required
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-black mb-2">
-                    Confirm New Password
-                  </label>
-                  <input
-                    type="password"
-                    value={passwordForm.confirmPassword}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-gray-300 focus:border-black focus:outline-none transition-colors"
-                    required
-                  />
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-2">
+                      Confirm New Password
+                    </label>
+                    <input
+                      type="password"
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                      className="w-full px-4 py-3 border-2 border-gray-300 focus:border-black focus:outline-none transition-colors"
+                      required
+                    />
+                  </div>
 
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  type="submit"
-                  disabled={saving}
-                  className="flex items-center space-x-2 px-6 py-3 bg-black text-white hover:bg-gray-800 transition-colors disabled:opacity-50"
-                >
-                  <Lock className="w-5 h-5" />
-                  <span>{saving ? 'Updating...' : 'Update Password'}</span>
-                </motion.button>
-              </form>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    type="submit"
+                    disabled={saving}
+                    className="flex items-center space-x-2 px-6 py-3 bg-gray-600 text-white hover:bg-gray-700 transition-colors disabled:opacity-50"
+                  >
+                    <Lock className="w-5 h-5" />
+                    <span>{saving ? 'Updating...' : 'Update Password'}</span>
+                  </motion.button>
+                </form> */}
+              </div>
+
+              {/* Email Verified Password Reset Section */}
+              <div className="p-4 border-2 border-blue-200 bg-blue-50 rounded-lg">
+                <h3 className="text-lg font-semibold text-black mb-2 flex items-center">
+                  <Shield className="w-5 h-5 mr-2" />
+                  Change Password (Email Verified)
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  For enhanced security, reset your password using email verification
+                </p>
+
+                {passwordResetStep === 'initial' && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={startPasswordReset}
+                    className="flex items-center space-x-2 px-6 py-3 bg-black text-white hover:bg-gray-800 transition-colors"
+                  >
+                    <Mail className="w-5 h-5" />
+                    <span>Change Password</span>
+                  </motion.button>
+                )}
+
+                {passwordResetStep === 'email' && (
+                  <form onSubmit={sendOTP} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-black mb-2">
+                        Confirm Your Email
+                      </label>
+                      <input
+                        type="email"
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        className="w-full px-4 py-3 border-2 border-gray-300 focus:border-black focus:outline-none transition-colors"
+                        placeholder="Enter your email"
+                        required
+                      />
+                    </div>
+                    <div className="flex space-x-3">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        type="submit"
+                        disabled={saving}
+                        className="flex items-center space-x-2 px-6 py-3 bg-black text-white hover:bg-gray-800 transition-colors disabled:opacity-50"
+                      >
+                        <Mail className="w-5 h-5" />
+                        <span>{saving ? 'Sending...' : 'Send OTP'}</span>
+                      </motion.button>
+                      <button
+                        type="button"
+                        onClick={resetPasswordForm}
+                        className="px-6 py-3 border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {passwordResetStep === 'otp' && (
+                  <form onSubmit={verifyOTPAndResetPassword} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-black mb-2">
+                        Enter OTP
+                      </label>
+                      <input
+                        type="text"
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value)}
+                        className="w-full px-4 py-3 border-2 border-gray-300 focus:border-black focus:outline-none transition-colors text-center text-lg font-mono"
+                        placeholder="Enter 6-digit OTP"
+                        maxLength="6"
+                        required
+                      />
+                      <p className="text-sm text-gray-600 mt-2">
+                        OTP sent to {resetEmail}. Check your email inbox.
+                      </p>
+                    </div>
+                    <div className="flex space-x-3">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        type="submit"
+                        disabled={saving}
+                        className="flex items-center space-x-2 px-6 py-3 bg-black text-white hover:bg-gray-800 transition-colors disabled:opacity-50"
+                      >
+                        <Shield className="w-5 h-5" />
+                        <span>Verify OTP</span>
+                      </motion.button>
+                      <button
+                        type="button"
+                        onClick={resetPasswordForm}
+                        className="px-6 py-3 border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {passwordResetStep === 'password' && (
+                  <form onSubmit={verifyOTPAndResetPassword} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-black mb-2">
+                        New Password
+                      </label>
+                      <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full px-4 py-3 border-2 border-gray-300 focus:border-black focus:outline-none transition-colors"
+                        placeholder="Enter new password"
+                        required
+                        minLength="6"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-black mb-2">
+                        Confirm New Password
+                      </label>
+                      <input
+                        type="password"
+                        value={confirmNewPassword}
+                        onChange={(e) => setConfirmNewPassword(e.target.value)}
+                        className="w-full px-4 py-3 border-2 border-gray-300 focus:border-black focus:outline-none transition-colors"
+                        placeholder="Confirm new password"
+                        required
+                        minLength="6"
+                      />
+                    </div>
+                    <div className="flex space-x-3">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        type="submit"
+                        disabled={saving}
+                        className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white hover:bg-green-700 transition-colors disabled:opacity-50"
+                      >
+                        <Lock className="w-5 h-5" />
+                        <span>{saving ? 'Updating...' : 'Update Password'}</span>
+                      </motion.button>
+                      <button
+                        type="button"
+                        onClick={resetPasswordForm}
+                        className="px-6 py-3 border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
             </div>
           )}
 
