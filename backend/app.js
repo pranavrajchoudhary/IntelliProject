@@ -18,6 +18,7 @@ const uploadRoutes = require('./routes/upload');
 const meetingRoutes = require('./routes/meetings');
 const ideaRoutes = require('./routes/idea');
 const adminRoutes = require('./routes/admin');
+const commentRoutes = require('./routes/comments');
 
 const app = express();
 
@@ -40,6 +41,7 @@ app.use('/upload', uploadRoutes);
 app.use('/meetings', meetingRoutes);
 app.use('/ideas', ideaRoutes);
 app.use('/admin', adminRoutes);
+app.use('/comments', commentRoutes);
 
 app.get('/', (req, res) => res.json({ status: 'ok' }));
 
