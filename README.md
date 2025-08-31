@@ -39,26 +39,19 @@ A comprehensive platform that enables teams to collaboratively brainstorm ideas,
 - **Real-Time Drawing** - Synchronized drawing tools with multiple brush types and colors
 - **Interactive Elements** - Add sticky notes, shapes, text boxes, and connectors
 - **Mind Mapping** - Create and collaborate on visual mind maps for brainstorming
-- **Template Library** - Pre-built templates for different project types and workflows
-- **Export Options** - Save whiteboards as images or PDF for documentation
-- **Version History** - Track changes and revert to previous whiteboard states
 
 ### 📊 Advanced Project Management
 - **Customizable Kanban Boards** - Create unlimited boards with custom columns and swimlanes
-- **Task Hierarchy** - Support for subtasks, dependencies, and task relationships
 - **Priority Management** - Color-coded priorities with automatic sorting and filtering
 - **Time Tracking** - Built-in time logging for tasks and projects
 - **Milestone Tracking** - Set and monitor project milestones with progress visualization
 - **Resource Allocation** - Assign team members and track workload distribution
 - **Project Templates** - Save successful project structures as reusable templates
-- **Gantt Chart View** - Visual timeline representation of project schedules
 
 ### 👥 Team Collaboration & Communication
 - **Real-Time Messaging** - Instant chat with emoji reactions and file sharing
 - **Threaded Discussions** - Organized conversations around specific tasks and topics
-- **Video Meetings** - Integrated meeting rooms with screen sharing capabilities
 - **Voice Notes** - Quick audio messages for faster communication
-- **Mention System** - Tag team members with @ mentions for notifications
 - **Status Updates** - Share progress updates and announcements
 - **Activity Feed** - Real-time stream of all project activities and changes
 
@@ -74,53 +67,16 @@ A comprehensive platform that enables teams to collaboratively brainstorm ideas,
 ### 📄 Document Management & Version Control
 - **Collaborative Editing** - Real-time document editing with conflict resolution
 - **Version History** - Complete revision tracking with diff visualization
-- **Document Templates** - Pre-formatted templates for common document types
-- **Rich Text Editor** - Full-featured editor with formatting, tables, and media
-- **File Organization** - Folder structure with search and tagging capabilities
 - **Export Formats** - Support for PDF, Word, and other popular formats
-- **Document Sharing** - Controlled sharing with external stakeholders
 
 ### 📈 Analytics & Reporting
 - **Project Dashboards** - Visual overview of project health and progress
 - **Team Performance Metrics** - Individual and team productivity analytics
-- **Time Analytics** - Detailed time tracking and reporting
-- **Custom Reports** - Generate reports for stakeholders and management
 - **Trend Analysis** - Identify patterns in team performance and project outcomes
-- **Burndown Charts** - Sprint and project progress visualization
-- **Resource Utilization** - Track team capacity and workload distribution
 
 ### 🔄 Real-Time Synchronization
 - **Live Updates** - Instant synchronization across all connected devices
-- **Conflict Resolution** - Smart handling of simultaneous edits and changes
-- **Offline Support** - Continue working offline with automatic sync when reconnected
-- **Cross-Platform** - Seamless experience across desktop, tablet, and mobile devices
-- **Presence Indicators** - See who's online and what they're working on
-- **Real-Time Cursors** - See other users' cursors and selections in real-time
-
-### 🎯 Task & Workflow Management
-- **Custom Workflows** - Design unique workflows for different project types
-- **Automated Actions** - Set up rules for automatic task assignments and notifications
-- **Recurring Tasks** - Schedule repeating tasks with customizable intervals
-- **Task Dependencies** - Link tasks with predecessor/successor relationships
-- **Bulk Operations** - Manage multiple tasks simultaneously
-- **Custom Fields** - Add project-specific metadata to tasks and projects
-- **Progress Tracking** - Visual progress indicators and completion percentages
-
-### 🔗 Integration & Extensibility
-- **File Upload** - Support for various file types with cloud storage integration
-- **Email Notifications** - Customizable email alerts for important events
-- **Calendar Integration** - Sync deadlines and meetings with external calendars
-- **Webhook Support** - Connect with external tools and services
-- **API Access** - RESTful API for custom integrations and automations
-- **Theme Customization** - Personalize the interface with custom themes and layouts
-
-### 📱 Mobile & Accessibility
-- **Responsive Design** - Optimized for all screen sizes and devices
-- **Progressive Web App** - Install as native app on mobile devices
-- **Keyboard Navigation** - Full keyboard accessibility support
-- **Screen Reader Support** - Compatible with assistive technologies
-- **High Contrast Mode** - Enhanced visibility for users with visual impairments
-- **Multi-Language Support** - Internationalization ready for global teams
+- **Cross-Platform** - Seamless experience across desktop, tablet, and mobile devices  
 
 ## Technology Stack
 
@@ -128,7 +84,6 @@ A comprehensive platform that enables teams to collaboratively brainstorm ideas,
 - **React.js 19** - Modern UI library with hooks and context
 - **Vite** - Fast build tool and development server
 - **Tailwind CSS 4** - Utility-first CSS framework
-- **Zustand** - Lightweight state management
 - **React Router v7** - Client-side routing
 - **Framer Motion** - Animation library
 - **React Hook Form** - Form handling and validation
@@ -139,8 +94,6 @@ A comprehensive platform that enables teams to collaboratively brainstorm ideas,
 - **MongoDB** - NoSQL database with Mongoose ODM
 - **Socket.IO** - Real-time bidirectional communication
 - **JWT** - JSON Web Token authentication
-- **Helmet** - Security middleware
-- **Morgan** - HTTP request logging
 
 ### AI & External Services
 - **Google Gemini AI** - AI-powered idea generation and assistance
@@ -227,11 +180,6 @@ A comprehensive platform that enables teams to collaboratively brainstorm ideas,
    - Generate reports and insights
    - Conduct regular team meetings and reviews
 
-### Real-Time Features
-- **Live Updates** - All changes sync instantly across devices
-- **Presence Awareness** - See who's online and what they're working on
-- **Conflict Resolution** - Smart handling of simultaneous edits
-- **Auto-Save** - Never lose your work with automatic saving
 
 ## Project Structure
 
