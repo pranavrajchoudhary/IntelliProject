@@ -32,7 +32,6 @@ A comprehensive platform that enables teams to collaboratively brainstorm ideas,
 - **Smart Idea Generation** - Generate creative project ideas using Google Gemini AI with contextual prompts
 - **AI Chat Assistant** - Get real-time help with project planning, task breakdown, and problem-solving
 - **Intelligent Suggestions** - AI-powered recommendations for task assignments and project optimization
-- **Content Enhancement** - AI assistance for improving documents, comments, and project descriptions
 - **Automated Insights** - AI-driven analytics that identify bottlenecks and suggest improvements
 
 ### 🎨 Collaborative Whiteboard & Ideation
