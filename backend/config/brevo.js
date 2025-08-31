@@ -9,7 +9,6 @@ const brevoAPI = axios.create({
   }
 });
 
-// Test BREVO connection
 const testBrevoConnection = async () => {
   try {
     const response = await brevoAPI.get('/account');
@@ -22,17 +21,14 @@ const testBrevoConnection = async () => {
 };
 
 const sendOTPEmail = async (email, otp, userName) => {
-  // Debug logging
   console.log('BREVO_API_KEY:', process.env.BREVO_API_KEY ? 'Present (length: ' + process.env.BREVO_API_KEY.length + ')' : 'Missing');
   console.log('BREVO_FROM_EMAIL:', process.env.BREVO_FROM_EMAIL);
   
-  // Try different API key format - some APIs expect it without prefix
   let apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) {
     throw new Error('BREVO_API_KEY environment variable is not set');
   }
   
-  // Create a fresh axios instance with proper headers
   const brevoRequest = axios.create({
     baseURL: 'https://api.brevo.com/v3',
     headers: {
@@ -40,7 +36,7 @@ const sendOTPEmail = async (email, otp, userName) => {
       'api-key': apiKey,
       'content-type': 'application/json'
     },
-    timeout: 10000 // 10 second timeout
+    timeout: 10000
   });
   
   const emailData = {

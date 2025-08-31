@@ -3,7 +3,6 @@ const { generateText } = require('../services/aiService');
 const Project = require('../models/Project');
 const Task = require('../models/Task');
 
-//Platform-specific predetermined responses
 const platformResponses = {
   'hi': {
     message: 'Hi! I\'m your AI assistant. How can I help you with our collaboration platform?',
@@ -45,13 +44,11 @@ const platformResponses = {
   }
 };
 
-//1. Messages Page AI Chat - Platform help + Gemini fallback
 exports.chatWithAI = asyncHandler(async (req, res) => {
   console.log('💬 AI Chat Request:', req.body);
   const { message } = req.body;
   const userMessage = message.toLowerCase().trim();
 
-  //Check predetermined responses first
   let response = platformResponses[message] || platformResponses[userMessage];
   
   if (!response) {
@@ -65,7 +62,6 @@ exports.chatWithAI = asyncHandler(async (req, res) => {
     }
   }
 
-  //If no match, it uses Gemini with platform-specific context
   if (!response) {
     try {
       const platformPrompt = `You are a helpful AI assistant for "Collab-Ideation", a modern project collaboration platform. 
@@ -110,13 +106,11 @@ Please provide a helpful, concise answer (max 200 words) related to our platform
   });
 });
 
-//2. Project-specific AI Chat - Uses project context
 exports.projectChatWithAI = asyncHandler(async (req, res) => {
   console.log('🎯 Project AI Chat Request:', req.body);
   const { message, projectId } = req.body;
 
   try {
-    //Get project details and tasks for context
     const project = await Project.findById(projectId).populate('members', 'name');
     const tasks = await Task.find({ project: projectId });
 
@@ -171,7 +165,6 @@ Keep responses concise (max 150 words) and actionable.`;
   }
 });
 
-//3. Dashboard AI - Generate project ideas
 exports.generateProjectIdeas = asyncHandler(async (req, res) => {
   console.log('💡 Project Ideas Request:', req.body);
   const { topic, industry } = req.body;

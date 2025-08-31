@@ -5,10 +5,8 @@ const asyncHandler = require('../utils/asyncHandler');
 exports.getProjectMessages = asyncHandler(async (req, res) => {
   const { excludeVoice } = req.query;
   
-  // Build query filter
   const filter = { project: req.params.projectId };
   
-  // If excludeVoice is true, filter out voice messages
   if (excludeVoice === 'true') {
     filter.type = { $ne: 'voice' };
   }
@@ -19,7 +17,6 @@ exports.getProjectMessages = asyncHandler(async (req, res) => {
     .sort({ createdAt: 1 })
     .limit(100);
 
-  // Mark messages as delivered for the requesting user
   await Message.updateMany(
     { 
       project: req.params.projectId,
@@ -31,15 +28,12 @@ exports.getProjectMessages = asyncHandler(async (req, res) => {
 
   const messagesWithCorrectStatus = messages.map(message => {
     if (message.sender._id.toString() === req.user._id.toString()) {
-      // For user's own messages, determine proper status
       if (message.readBy && message.readBy.length > 0) {
-        // Check if anyone other than sender has read it
         const hasBeenReadByOthers = message.readBy.some(read => 
           read.user.toString() !== req.user._id.toString()
         );
         message.status = hasBeenReadByOthers ? 'read' : 'delivered';
       } else {
-        // Default to delivered for user's own messages
         message.status = message.status === 'sent' ? 'delivered' : message.status;
       }
     }
@@ -60,24 +54,20 @@ exports.createMessage = asyncHandler(async (req, res) => {
     audioUrl,
     audioDuration,
     status: 'sent',
-    tempId // Store temp ID for matching
+    tempId
   });
 
   const populatedMessage = await Message.findById(message._id)
     .populate('sender', 'name email')
     .populate('readBy.user', 'name');
 
-  // Add tempId to response for frontend matching
   const responseMessage = {
     ...populatedMessage.toObject(),
     tempId
   };
-
-  // Emit to project room via socket
   const io = req.app.get('io');
   if (io) {
     io.to(projectId).emit('newMessage', responseMessage);
-    // Emit delivery confirmation with tempId
     io.to(projectId).emit('messageDelivered', { 
       messageId: message._id, 
       tempId 
@@ -95,20 +85,17 @@ exports.markAsRead = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Message not found' });
   }
 
-  // Check if user already read this message
   const alreadyRead = message.readBy.find(r => r.user.equals(req.user._id));
   
   if (!alreadyRead) {
     message.readBy.push({ user: req.user._id });
     
-    // Update status to read if this user is reading it
     if (message.sender.toString() !== req.user._id.toString()) {
       message.status = 'read';
     }
     
     await message.save();
 
-    // Emit read receipt to sender
     const io = req.app.get('io');
     if (io) {
       io.to(message.project.toString()).emit('messageRead', { 
@@ -121,7 +108,6 @@ exports.markAsRead = asyncHandler(async (req, res) => {
   res.json({ message: 'Marked as read' });
 });
 
-// Get unread message count per project for user
 exports.getUnreadCounts = asyncHandler(async (req, res) => {
   const userProjects = await Project.find({ members: req.user._id }).select('_id title');
   

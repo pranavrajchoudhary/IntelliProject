@@ -217,7 +217,7 @@ const handleTaskUpdated = (updatedTask) => {
           initial={{ x: 300, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 300, opacity: 0 }}
-          className="fixed right-0 top-0 h-full w-80 bg-white border-l-2 border-black z-40"
+          className="fixed right-0 top-16 h-[calc(100vh-4rem)] w-80 bg-white border-l-2 border-black z-50"
         >
           <Chat projectId={id} onClose={() => setShowChat(false)} />
         </motion.div>

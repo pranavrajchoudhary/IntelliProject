@@ -49,11 +49,9 @@ exports.deleteAccount = asyncHandler(async (req, res) => {
   res.json({ message: 'Account deleted successfully' });
 });
 
-// Send OTP for password reset
 exports.sendPasswordResetOTP = asyncHandler(async (req, res) => {
   const { email } = req.body;
   
-  // Verify that the email belongs to the current user
   if (email !== req.user.email) {
     return res.status(400).json({ message: 'Email does not match your account' });
   }
@@ -79,11 +77,9 @@ exports.sendPasswordResetOTP = asyncHandler(async (req, res) => {
   }
 });
 
-// Verify OTP and reset password
 exports.verifyOTPAndResetPassword = asyncHandler(async (req, res) => {
   const { email, otp, newPassword } = req.body;
   
-  // Verify that the email belongs to the current user
   if (email !== req.user.email) {
     return res.status(400).json({ message: 'Email does not match your account' });
   }
@@ -94,7 +90,6 @@ exports.verifyOTPAndResetPassword = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: otpVerification.message });
   }
   
-  // Update password
   const user = await User.findById(req.user._id);
   if (!user) {
     return res.status(404).json({ message: 'User not found' });
@@ -106,7 +101,6 @@ exports.verifyOTPAndResetPassword = asyncHandler(async (req, res) => {
   res.json({ message: 'Password reset successfully' });
 });
 
-// Test BREVO connection
 exports.testBrevo = asyncHandler(async (req, res) => {
   try {
     const result = await testBrevoConnection();

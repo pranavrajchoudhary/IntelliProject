@@ -22,11 +22,9 @@ exports.getUsers = asyncHandler(async (req, res) => {
   res.json(users);
 });
 
-// Get user by ID
 exports.getUserById = asyncHandler(async (req, res) => {
   const { id } = req.params;
   
-  // Validate ObjectId format
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ message: 'Invalid user ID format' });
   }
@@ -36,7 +34,6 @@ exports.getUserById = asyncHandler(async (req, res) => {
   res.json(user);
 });
 
-// Search users
 exports.searchUsers = asyncHandler(async (req, res) => {
   const { query } = req.query;
   const users = await User.find({
@@ -48,12 +45,10 @@ exports.searchUsers = asyncHandler(async (req, res) => {
   res.json(users);
 });
 
-// Update user role - Only admins
 exports.updateUserRole = asyncHandler(async (req, res) => {
   const { role } = req.body;
   const { userId } = req.params;
 
-  // Validate role
   const validRoles = ['admin', 'pm', 'member', 'guest'];
   if (!validRoles.includes(role)) {
     return res.status(400).json({ 
@@ -61,7 +56,6 @@ exports.updateUserRole = asyncHandler(async (req, res) => {
     });
   }
 
-  // Cannot change your own role
   if (userId === req.user._id.toString()) {
     return res.status(400).json({ message: 'Cannot change your own role' });
   }
@@ -82,7 +76,6 @@ exports.updateUserRole = asyncHandler(async (req, res) => {
   });
 });
 
-// Get all users with their roles - Only admins and PMs
 exports.getUsersWithRoles = asyncHandler(async (req, res) => {
   const users = await User.find({})
     .select('name email role createdAt')

@@ -95,42 +95,36 @@ exports.getAdminStats = asyncHandler(async (req, res) => {
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-  // User statistics
+  //User statistics
   const totalUsers = await User.countDocuments({ status: 'approved' });
   const pendingRegistrations = await User.countDocuments({ status: 'pending' });
   const suspendedUsers = await User.countDocuments({ suspended: true });
   
-  // Active users today (based on login activity)
   const activeToday = await ActivityLog.countDocuments({
     timestamp: { $gte: today },
     type: 'login'
   });
 
-  // Active users yesterday
   const activeYesterday = await ActivityLog.countDocuments({
     timestamp: { $gte: yesterday, $lt: today },
     type: 'login'
   });
 
-  // New registrations this week
   const newThisWeek = await User.countDocuments({
     createdAt: { $gte: weekAgo },
     status: { $in: ['approved', 'pending'] }
   });
 
-  // Role distribution
   const roleStats = await User.aggregate([
     { $match: { status: 'approved' } },
     { $group: { _id: '$role', count: { $sum: 1 } } }
   ]);
 
-  // Project statistics
   const totalProjects = await Project.countDocuments();
   const activeProjects = await Project.countDocuments({ 
     status: { $in: ['active', 'in-progress'] } 
   });
 
-  // Task statistics
   const totalTasks = await Task.countDocuments();
   const completedTasks = await Task.countDocuments({ status: 'completed' });
   const overdueTasks = await Task.countDocuments({
@@ -138,7 +132,6 @@ exports.getAdminStats = asyncHandler(async (req, res) => {
     status: { $ne: 'completed' }
   });
 
-  // Activity trends (last 7 days)
   const activityTrends = await ActivityLog.aggregate([
     {
       $match: {
@@ -159,7 +152,6 @@ exports.getAdminStats = asyncHandler(async (req, res) => {
     }
   ]);
 
-  // Recent activities
   const recentActivities = await ActivityLog.find({})
     .populate('user', 'name email role')
     .sort({ timestamp: -1 })
@@ -205,14 +197,12 @@ exports.updateUser = asyncHandler(async (req, res) => {
   const oldRole = user.role;
   const oldSuspended = user.suspended;
 
-  // Store original role if changing from a higher privilege role
   if (role && role !== oldRole) {
     if (!user.originalRole && ['admin', 'pm'].includes(oldRole)) {
       user.originalRole = oldRole;
     }
   }
 
-  // Update user fields
   if (name) user.name = name;
   if (email) user.email = email;
   if (role) user.role = role;
@@ -220,12 +210,10 @@ exports.updateUser = asyncHandler(async (req, res) => {
 
   await user.save();
 
-  // Update user's project memberships based on role change
   if (role && role !== oldRole) {
     await updateUserProjectPermissions(userId, oldRole, role);
   }
 
-  // Log the activity
   const changes = [];
   if (name && name !== user.name) changes.push(`name to ${name}`);
   if (email && email !== user.email) changes.push(`email to ${email}`);
@@ -262,13 +250,11 @@ exports.deleteUser = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'User not found' });
   }
 
-  // Remove user from all projects
   await Project.updateMany(
     { members: userId },
     { $pull: { members: userId } }
   );
 
-  // Update tasks assigned to this user
   await Task.updateMany(
     { assignee: userId },
     { $unset: { assignee: 1 } }
@@ -335,7 +321,6 @@ exports.restoreUserRole = asyncHandler(async (req, res) => {
   user.originalRole = undefined;
   await user.save();
 
-  // Update project permissions
   await updateUserProjectPermissions(userId, oldRole, user.role);
 
   try {
@@ -352,10 +337,9 @@ exports.restoreUserRole = asyncHandler(async (req, res) => {
   res.json(user);
 });
 
-// Helper function to update user project permissions based on role change
 async function updateUserProjectPermissions(userId, oldRole, newRole) {
-  // This function handles project permission updates when user role changes
-  // The user remains in projects but their permissions are based on their new role
+  //This function handles project permission updates when user role changes
+  //The user remains in projects but their permissions are based on their new role
   
   try {
     await ActivityLog.create({
