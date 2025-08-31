@@ -9,7 +9,6 @@ router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);
 router.put('/change-password', protect, changePassword);
 
-// Forgot password routes (public - no authentication required)
 router.post('/forgot-password/send-otp', forgotPasswordSendOTP);
 router.post('/forgot-password/verify-otp', forgotPasswordResetPassword);
 

@@ -2,7 +2,6 @@ const cron = require('node-cron');
 const MeetingRoom = require('../models/MeetingRoom');
 
 module.exports = function scheduleMeetings(io) {
-  // every minute
   cron.schedule('* * * * *', async () => {
     const now = new Date();
     const ready = await MeetingRoom.updateMany(

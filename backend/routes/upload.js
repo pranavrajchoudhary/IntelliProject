@@ -8,7 +8,7 @@ const { protect } = require('../middleware/auth');
 const storage = multer.memoryStorage();
 const upload = multer({ 
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  limits: { fileSize: 10 * 1024 * 1024 } //10MB limit
 });
 
 router.post('/audio', protect, upload.single('audio'), async (req, res) => {
@@ -19,9 +19,9 @@ router.post('/audio', protect, upload.single('audio'), async (req, res) => {
 
     const stream = cloudinary.uploader.upload_stream(
       { 
-        resource_type: 'video', // Use 'video' for audio files
+        resource_type: 'video',
         folder: 'voice-messages',
-        format: 'mp3' // Convert to mp3 for better compression
+        format: 'mp3'
       },
       (error, result) => {
         if (error) {

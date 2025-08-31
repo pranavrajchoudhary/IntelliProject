@@ -13,7 +13,7 @@ const io = require('socket.io')(server, {
 
 app.set('io', io); 
 
-initSocket(io); // socket handlers
+initSocket(io);
 
 const scheduleMeetings = require('./jobs/scheduleMeetings');
 scheduleMeetings(io);
