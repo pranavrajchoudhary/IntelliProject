@@ -66,7 +66,6 @@ export const userAPI = {
   getProfile: () => api.get('/users/profile'),
   updateProfile: (data) => api.put('/users/profile', data),
   getUsers: () => api.get('/users'),
-  getUsersForCollaboration: () => api.get('/users/for-collaboration'),
   updateUserRole: (userId, data) => api.put(`/users/${userId}/role`, data),
   searchUsers: (query) => api.get(`/users/search?query=${query}`)
 };

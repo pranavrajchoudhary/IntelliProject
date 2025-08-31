@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const asyncHandler = require('../utils/asyncHandler');
+const mongoose = require('mongoose');
 
 exports.getUserProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id).select('-password');
@@ -23,7 +24,14 @@ exports.getUsers = asyncHandler(async (req, res) => {
 
 // Get user by ID
 exports.getUserById = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.id).select('-password');
+  const { id } = req.params;
+  
+  // Validate ObjectId format
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Invalid user ID format' });
+  }
+  
+  const user = await User.findById(id).select('-password');
   if (!user) return res.status(404).json({ message: 'User not found' });
   res.json(user);
 });
