@@ -33,6 +33,11 @@ export const authAPI = {
     api.post('/auth/login', { email, password }),
   register: (name, email, password, role) =>
     api.post('/auth/register', { name, email, password, role }),
+  // Forgot password endpoints (public)
+  forgotPasswordSendOTP: (email) =>
+    api.post('/auth/forgot-password/send-otp', { email }),
+  forgotPasswordResetPassword: (email, otp, newPassword) =>
+    api.post('/auth/forgot-password/verify-otp', { email, otp, newPassword }),
 };
 
 export const projectAPI = {

@@ -1,11 +1,9 @@
 const { GoogleGenAI } = require('@google/genai');
 
-// Initialize the client
 const genAI = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY
 });
 
-// Fixed text generation
 async function generateText(prompt) {
   try {
     const response = await genAI.models.generateContent({
@@ -19,7 +17,6 @@ async function generateText(prompt) {
       }
     });
 
-    // Access text from the first part in the array
     const text = response.candidates[0]?.content?.parts?.[0]?.text;
 
     if (!text) {
@@ -52,7 +49,6 @@ async function generateStructuredData(prompt) {
       }
     });
 
-    //Access text from the first part in the array
     const text = response.candidates[0]?.content?.parts?.[0]?.text;
 
     if (!text || text.trim() === '') {
@@ -62,7 +58,6 @@ async function generateStructuredData(prompt) {
     }
 
     try {
-      //Removes Markdown code block if present
       const cleaned = text.replace(/```json\s*([\s\S]*?)```/, '$1').trim();
       return JSON.parse(cleaned);
     } catch (parseError) {
@@ -75,7 +70,6 @@ async function generateStructuredData(prompt) {
   }
 }
 
-// Fallback ideas function
 function getFallbackIdeas() {
   return [
     {

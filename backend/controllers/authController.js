@@ -2,18 +2,18 @@ const asyncHandler = require('../utils/asyncHandler');
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
 const ActivityLog = require('../models/ActivityLog');
+const { sendOTPEmail } = require('../config/brevo');
+const { generateOTP, storeOTP, verifyOTP } = require('../utils/otpService');
 
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, role } = req.body;
 
-  // Check if user exists
   const userExists = await User.findOne({ email });
   if (userExists) {
     return res.status(400).json({ message: 'User already exists' });
   }
 
-  // Determine approval status based on role
-  let status = 'approved'; // Default for backward compatibility
+  let status = 'approved'; 
   let requiresApproval = false;
 
   if (role === 'admin' || role === 'pm') {
@@ -21,7 +21,6 @@ const registerUser = asyncHandler(async (req, res) => {
     requiresApproval = true;
   }
 
-  // Create user
   const user = await User.create({
     name,
     email,
@@ -72,17 +71,14 @@ const registerUser = asyncHandler(async (req, res) => {
 const authUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  // Check for user
   const user = await User.findOne({ email });
 
   if (user && (await user.matchPassword(password))) {
-    // Handle existing users without status field (backward compatibility)
     if (!user.status) {
       user.status = 'approved';
       await user.save();
     }
 
-    // Check account status
     if (user.status === 'pending') {
       return res.status(403).json({
         message: 'Your account is pending approval. Please wait for an administrator to approve your registration.'
@@ -230,10 +226,75 @@ const changePassword = asyncHandler(async (req, res) => {
   }
 });
 
+const forgotPasswordSendOTP = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  
+  if (!email) {
+    return res.status(400).json({ message: 'Email is required' });
+  }
+  
+  const user = await User.findOne({ email });
+  if (!user) {
+    return res.status(404).json({ message: 'No account found with this email address' });
+  }
+  
+  try {
+    const otp = generateOTP();
+    storeOTP(email, otp);
+    
+    await sendOTPEmail(email, otp, user.name);
+    
+    res.json({ 
+      message: 'OTP sent successfully to your email',
+      email: email 
+    });
+  } catch (error) {
+    console.error('Error sending OTP:', error);
+    res.status(500).json({ message: 'Failed to send OTP. Please try again.' });
+  }
+});
+
+const forgotPasswordResetPassword = asyncHandler(async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+  
+  if (!email || !otp || !newPassword) {
+    return res.status(400).json({ message: 'Email, OTP, and new password are required' });
+  }
+  
+  const user = await User.findOne({ email });
+  if (!user) {
+    return res.status(404).json({ message: 'No account found with this email address' });
+  }
+  
+  const otpVerification = verifyOTP(email, otp);
+  
+  if (!otpVerification.valid) {
+    return res.status(400).json({ message: otpVerification.message });
+  }
+  
+  user.password = newPassword;
+  await user.save();
+  
+  try {
+    await ActivityLog.create({
+      userId: user._id,
+      action: 'Password Reset',
+      details: 'User reset password using forgot password feature',
+      timestamp: new Date()
+    });
+  } catch (error) {
+    console.log('ActivityLog creation failed:', error.message);
+  }
+  
+  res.json({ message: 'Password reset successfully' });
+});
+
 module.exports = {
   registerUser,
   authUser,
   getMe,
   updateProfile,
-  changePassword
+  changePassword,
+  forgotPasswordSendOTP,
+  forgotPasswordResetPassword
 };

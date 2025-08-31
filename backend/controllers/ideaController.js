@@ -2,17 +2,14 @@ const Idea = require('../models/Idea');
 const Project = require('../models/Project');
 const asyncHandler = require('../utils/asyncHandler');
 
-// Save an idea to project
 exports.saveIdea = asyncHandler(async (req, res) => {
   const { title, description, category, priority, feasibility, tags, prompt, projectId } = req.body;
   
-  // Check if user has access to the project
   const project = await Project.findById(projectId);
   if (!project) {
     return res.status(404).json({ message: 'Project not found' });
   }
   
-  // Check if user is project member or admin
   const isProjectMember = project.members.some(
     member => member.toString() === req.user._id.toString()
   );
@@ -42,17 +39,14 @@ exports.saveIdea = asyncHandler(async (req, res) => {
   res.status(201).json(populatedIdea);
 });
 
-// Get all saved ideas for a project
 exports.getProjectIdeas = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
   
-  // Check if user has access to the project
   const project = await Project.findById(projectId);
   if (!project) {
     return res.status(404).json({ message: 'Project not found' });
   }
   
-  // Check if user is project member or admin
   const isProjectMember = project.members.some(
     member => member.toString() === req.user._id.toString()
   );
@@ -70,7 +64,6 @@ exports.getProjectIdeas = asyncHandler(async (req, res) => {
   res.json(ideas);
 });
 
-// Delete an idea
 exports.deleteIdea = asyncHandler(async (req, res) => {
   const { ideaId } = req.params;
   
@@ -79,7 +72,6 @@ exports.deleteIdea = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Idea not found' });
   }
   
-  // Check permissions: only creator, project owner, or admin can delete
   const isCreator = idea.createdBy.toString() === req.user._id.toString();
   const isProjectOwner = idea.project.owner.toString() === req.user._id.toString();
   const isAdmin = req.user.role === 'admin';

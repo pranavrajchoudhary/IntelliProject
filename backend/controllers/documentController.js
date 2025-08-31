@@ -10,7 +10,7 @@ exports.createDocument = asyncHandler(async (req, res) => {
 exports.updateDocument = asyncHandler(async (req, res) => {
   const doc = await Document.findById(req.params.id);
   if (!doc) return res.status(404).json({ message: 'Document not found' });
-  doc._updatedBy = req.user._id; // used in pre-save hook to save version editor
+  doc._updatedBy = req.user._id;
   doc.currentContent = req.body.currentContent || doc.currentContent;
   await doc.save();
   res.json(doc);

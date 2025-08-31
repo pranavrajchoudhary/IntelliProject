@@ -1,6 +1,5 @@
 const Project = require('../models/Project');
 
-// Role-based authorization middleware
 const authorizeRoles = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -17,7 +16,6 @@ const authorizeRoles = (...roles) => {
   };
 };
 
-// Project ownership authorization
 const authorizeProjectAccess = (action = 'read') => {
   return async (req, res, next) => {
     try {
@@ -35,13 +33,11 @@ const authorizeProjectAccess = (action = 'read') => {
 
       const user = req.user;
 
-      // Admin can access everything
       if (user.role === 'admin') {
         req.project = project;
         return next();
       }
 
-      // Project manager can access their own projects
       if (user.role === 'pm') {
         if (project.owner.toString() === user._id.toString()) {
           req.project = project;
@@ -58,7 +54,6 @@ const authorizeProjectAccess = (action = 'read') => {
         });
       }
 
-      // Members can read projects they belong to
       if (user.role === 'member' || user.role === 'guest') {
         if (action !== 'read') {
           return res.status(403).json({ 
@@ -70,12 +65,6 @@ const authorizeProjectAccess = (action = 'read') => {
     req.project = project;
     return next();
   }
-        
-        // if (project.members.includes(user._id)) {
-        //   req.project = project;
-        //   return next();
-        // }
-        
         return res.status(403).json({ 
           message: 'You can only view projects you are a member of' 
         });
