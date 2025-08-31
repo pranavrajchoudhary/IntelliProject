@@ -33,7 +33,6 @@ export const authAPI = {
     api.post('/auth/login', { email, password }),
   register: (name, email, password, role) =>
     api.post('/auth/register', { name, email, password, role }),
-  // Forgot password endpoints (public)
   forgotPasswordSendOTP: (email) =>
     api.post('/auth/forgot-password/send-otp', { email }),
   forgotPasswordResetPassword: (email, otp, newPassword) =>
@@ -122,28 +121,23 @@ export const uploadAPI = {
 };
 
 export const meetingAPI = {
-  // Meeting rooms
   createMeeting: (data) => api.post('/meetings', data),
   getActiveMeetings: () => api.get('/meetings/active'),
   getUpcomingMeetings: () => api.get('/meetings/upcoming'),
   getMeetingHistory: (page = 1, limit = 10) => api.get(`/meetings/history?page=${page}&limit=${limit}`),
   
-  // Room actions
   joinMeeting: (roomId) => api.post(`/meetings/${roomId}/join`),
   leaveMeeting: (roomId) => api.post(`/meetings/${roomId}/leave`),
   endMeeting: (roomId) => api.post(`/meetings/${roomId}/end`),
   cancelMeeting: (roomId) => api.delete(`/meetings/${roomId}/cancel`),
   
-  // Settings and controls
   updateSettings: (roomId, settings) => api.put(`/meetings/${roomId}/settings`, { settings }),
   muteParticipant: (roomId, participantId, muted, canUnmute = true) => 
     api.put(`/meetings/${roomId}/participants/${participantId}/mute`, { muted, canUnmute }),
   
-  // Voice controls
   muteAllParticipants: (roomId) => api.post(`/meetings/${roomId}/mute-all`),
   unmuteAllParticipants: (roomId) => api.post(`/meetings/${roomId}/unmute-all`),
   
-  // Whiteboard access
   updateWhiteboardAccess: (roomId, access, allowedUsers) => 
     api.put(`/meetings/${roomId}/whiteboard-access`, { access, allowedUsers }),
   getTurnCredentials: () => api.get('/meetings/turn-credentials'),
@@ -170,6 +164,13 @@ export const adminAPI = {
   suspendUser: (userId, suspended) => api.put(`/admin/users/${userId}/suspend`, { suspended }),
   restoreUserRole: (userId) => api.put(`/admin/users/${userId}/restore-role`),
   getUserActivity: (userId) => api.get(`/admin/users/${userId}/activity`),
+};
+
+export const commentAPI = {
+  getProjectComments: (projectId) => api.get(`/comments/project/${projectId}`),
+  createComment: (projectId, data) => api.post(`/comments/project/${projectId}`, data),
+  updateComment: (commentId, data) => api.put(`/comments/${commentId}`, data),
+  deleteComment: (commentId) => api.delete(`/comments/${commentId}`)
 };
 
 export default api;

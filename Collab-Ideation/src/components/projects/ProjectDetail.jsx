@@ -11,6 +11,7 @@ import Chat from '../chat/Chat';
 import EditTaskModal from '../tasks/EditTaskModal';
 import { useAuth } from '../../context/AuthContext';
 import SavedIdeasModal from '../ideas/SavedIdeasModal';
+import ProjectComments from './ProjectComments';
 
 const ProjectDetail = ({ id: propId }) => {
   const params = useParams();
@@ -336,6 +337,9 @@ const handleTaskUpdated = (updatedTask) => {
           onSuccess={handleTaskUpdated}
         />
       )}
+
+      {/* Comments Section */}
+      <ProjectComments projectId={id} project={project} />
     </div>
   );
 };
