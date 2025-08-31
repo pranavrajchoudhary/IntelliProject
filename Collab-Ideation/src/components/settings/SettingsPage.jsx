@@ -293,7 +293,7 @@ const SettingsPage = () => {
               <h2 className="text-xl font-bold text-black mb-6">Security Settings</h2>
               
               {/* Current Password Change Section */}
-              <div className="mb-8 p-4 border border-gray-200 rounded-lg">
+              {/* <div className="mb-8 p-4 border border-gray-200 rounded-lg"> */}
                 {/* <h3 className="text-lg font-semibold text-black mb-4">Current Password Change</h3> */}
                 {/* <form onSubmit={handlePasswordChange} className="space-y-4">
                   <div>
@@ -346,7 +346,7 @@ const SettingsPage = () => {
                     <span>{saving ? 'Updating...' : 'Update Password'}</span>
                   </motion.button>
                 </form> */}
-              </div>
+              {/* </div> */}
 
               {/* Email Verified Password Reset Section */}
               <div className="p-4 border-2 border-blue-200 bg-blue-50 rounded-lg">

@@ -71,7 +71,7 @@ const ProjectsPage = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await userAPI.getUsersForCollaboration();
+      const response = await userAPI.getUsers();
       setUsers(response.data);
     } catch (error) {
       console.error('Error fetching users:', error);
