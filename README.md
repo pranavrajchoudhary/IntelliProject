@@ -256,20 +256,12 @@ We welcome contributions to improve the platform! Here's how you can get involve
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-## Authors
-
-**G11 Web Development Team**
-
+## Author
 - **Pranav Raj Chaudhary** 
-- **Karthik Nambiar** 
-- **Priyanshu Pandey** 
-- **Vinay Mohan Shukla** 
+ 
 
 ---
-
-**G11 Internship Project 1** - Collaborative AI-Powered Ideation & Project Management Platform
-
-For questions, suggestions, or support, please open an issue on this repository.
+ 
 
 ⭐ If you find this project useful, please consider giving it a star on GitHub!
 ```
