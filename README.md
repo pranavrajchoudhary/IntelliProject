@@ -5,7 +5,7 @@
 A comprehensive platform that enables teams to collaboratively brainstorm ideas, plan projects, and manage tasks with real-time interaction and AI assistance for enhanced productivity. Built with modern MERN stack technology and integrated with AI APIs for next-generation project collaboration.
 
 ## Table of Contents
-
+ 
 - [Overview](#overview)
 - [Features](#features)
 - [Technology Stack](#technology-stack)
